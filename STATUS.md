@@ -29,7 +29,9 @@ Last updated: Round 0 complete (10 Oct 2026). Version 0.0.1.
 - **Design references** live in `design-refs/`, which is git-ignored. Notes are in `docs/DESIGN_NOTES.md`.
 - **Design tokens (10 Oct 2026).** Lighter label grey `#85858D`: accepted. Top glow: partly accepted, subtle and not on every screen. Corner sizes chosen by the owner on a sample screen: cards 28, chips/tags/thumbnails 17, buttons fully rounded. These override SPEC section 6 (see `docs/DESIGN_NOTES.md`, Decisions).
 - **Tunnel mode.** `@expo/ngrok` is a dev dependency, added by Expo when `npx expo start --tunnel` was run. Use `--tunnel` whenever the phone can't reach the PC over Wi-Fi.
-- **Preview.** the local preview config (git-ignored) attaches the desktop preview to a dev server that is already running on port 8081. Start the server yourself with `npx expo start` first.
+- **Private working files.** The owner's standing rules and round-by-round build prompts live on the owner's PC and are deliberately not in this repo. `SPEC.md`, this file and `LOGBOOK.md` are the public record.
+- **Credits.** Commit messages and pull requests carry no tool credit or co-author lines, at the owner's request.
+- **Preview.** A local preview config (kept out of git) attaches the desktop preview to a dev server that is already running on port 8081. Start the server yourself with `npx expo start` first.
 - **Git.** Work happens on `round-N-short-name` branches and merges to `main` after the round is confirmed on the phone.
 - **GitHub.** `main` is pushed to the public repo `rishabhdarji/Qevrion` (first push 10 Oct 2026). Commits use GitHub's private noreply address, set in this repo's local git config; the owner's personal email must stay out of commits. The owner's standing instruction is to push `main` at each important milestone without asking each time, after checking nothing private is in the commits. Never force-push.
 - **CI.** `.github/workflows/ci.yml` runs `npm ci`, type-check and lint on every push. First run passed. Add `npm test` in Round 2.

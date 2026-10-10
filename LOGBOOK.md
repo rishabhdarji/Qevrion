@@ -11,7 +11,7 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 3. **Looked up which SDK Expo Go supports.** Answer: SDK 57. Sources: Expo changelog of 3 Sep 2026 and the App Store listing (Expo Go 57.0.9). One Expo troubleshooting page still says SDK 54; it is out of date.
 4. **Found a new requirement.** Since Sep 2026, Expo Go on iPhone needs you signed in to the same Expo account in the terminal and in the app. Free plan is enough.
 5. **Wrote the plan and you approved it.**
-6. **Started git.** Created the repo on `main`. Moved the eight reference images from the project root into `design-refs/` and git-ignored that folder. First commit: the three docs and `.gitignore`. Then switched to branch `round-0-preflight`.
+6. **Started git.** Created the repo on `main`. Moved the eight reference images from the project root into `design-refs/` and git-ignored that folder. First commit: the project docs and `.gitignore`. Then switched to branch `round-0-preflight`.
 7. **Created the Expo project.** The folder was not empty, so the SDK 57 template was generated in a temp folder and only the needed files were brought over: `package.json`, `tsconfig.json`, `.gitignore`. The template's demo screens, components and Expo logo images were left behind.
 8. **Set the app config.** `app.json`: name Qevrion, version 0.0.1, dark interface, background `#0E0E10`. No icon yet, because the Qevrion mark is drawn in Round 1.
 9. **Wrote the hello screen.** `src/app/_layout.tsx` and `src/app/index.tsx`: near-black screen, "Qevrion 0.0.1" centred. The version number is read from `app.json`.
@@ -24,7 +24,7 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 16. Started this log book at your request.
 17. The app's preview button failed with "Port 8081 is being used by another process". Cause: the dev server you had started already owns port 8081, and the preview tried to start a second one (its config also pointed at port 3000, which is not Expo's port). Fix: the local preview config now attaches the preview to the server that is already running instead of starting another. Nothing was killed.
 18. Opened the preview. It shows "Qevrion 0.0.1" on a near-black screen with no console errors. This is the web version of the screen, so it proves the code runs, not that the phone works. Also confirmed the terminal is now signed in to Expo.
-19. Git-ignored the local tool settings folder so local tool settings stay out of the public repo.
+19. Kept the local tool settings folder out of git so it stays out of the public repo.
 
 ## Round 0 confirmed
 
@@ -59,6 +59,8 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 42. Left for you to decide (details in the chat): your PC's global git setting still uses your personal email for other projects, and the old pre-rewrite commits still exist on this PC as a local backup.
 43. You turned on GitHub's two email privacy settings: keep the address private, and block pushes that would expose it.
 44. You asked for a README. Wrote `README.md`: what Qevrion is, what it will do, the roadmap by round, honest limitations, how to run it in Expo Go, and the tech stack. It says plainly that only Round 0 is built.
-45. You said the app should work on all devices, not one model. the project rules and the README now say every iPhone that can run Expo Go, at any screen size. Whether "all devices" also means iPad or Android is an open question.
+45. You said the app should work on all devices, not one model. The project rules and the README now say every iPhone that can run Expo Go, at any screen size. Whether "all devices" also means iPad or Android is an open question.
+
+46. You asked for no tool credits in the repo. Removed the co-author line from every commit message and the footer from the pull request. The working-rules file and the build-prompts file are now kept on the PC only, out of the repo and its history, and the docs were reworded to match.
 
 **Next:** Round 1 (design system and app shell). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.
