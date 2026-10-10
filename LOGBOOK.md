@@ -23,4 +23,8 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 15. Checked the Expo sign-in on the PC: the terminal is not signed in yet (`npx expo whoami` says "Not logged in"). Tried to open `npx expo login` in the Terminal panel for you. It failed: the panel's shell integration script is missing on this PC, so commands cannot be typed there for you. You run the two commands yourself instead.
 16. Started this log book at your request.
 
-**Waiting on you:** run `npx expo login`, then `npx expo start`, and open the app in Expo Go. Round 0 is done when you see "Qevrion 0.0.1" on the phone.
+17. The app's preview button failed with "Port 8081 is being used by another process". Cause: the dev server you started already owns port 8081, and the preview tried to start a second one (its config also pointed at port 3000, which is not Expo's port). Fix: the local preview config now attaches the preview to the server that is already running instead of starting another. Nothing was killed.
+18. Opened the preview. It shows "Qevrion 0.0.1" on a near-black screen with no console errors. This is the web version of the screen, so it proves the code runs, not that the phone works. Also confirmed the terminal is now signed in to Expo.
+19. Git-ignored the local tool settings folder so local tool settings stay out of the public repo.
+
+**Waiting on you:** open the app in Expo Go on the iPhone (sign in to the same Expo account in the app, then scan the QR code in your terminal). Round 0 is done when you see "Qevrion 0.0.1" on the phone.
