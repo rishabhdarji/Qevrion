@@ -15,7 +15,7 @@ and a camera view that walks you to the door.
 </div>
 
 > [!NOTE]
-> **Early days.** Qevrion is being built in the open, one round at a time. Round 0 is done and ten more follow. Today the app opens to a single screen. Everything under "What it will do" is the plan, not what is in the code yet. [STATUS.md](STATUS.md) always says what actually works.
+> **Early days.** Qevrion is being built in the open, one round at a time. Rounds 0 and 1 are done and nine more follow. Today the app has its look and all ten screens, running on invented sample events: nothing is saved or imported yet, and the map and AR Walk are mock-ups. Everything under "What it will do" is the plan, not what is in the code yet. [STATUS.md](STATUS.md) always says what actually works.
 
 ## Why
 
@@ -44,8 +44,8 @@ Invites pile up. They live in different apps, the details are buried in long des
 | Round | What gets built | Status |
 |:---:|---|---|
 | 0 | Preflight and hello world | **Done** |
-| 1 | Design system and app shell | Next |
-| 2 | Database and manual events | Planned |
+| 1 | Design system and app shell | **Done** |
+| 2 | Database and manual events | Next |
 | 3 | Import from Calendar and `.ics` | Planned |
 | 4 | Reminders | Planned |
 | 5 | Key details, weather, conflicts | Planned |

@@ -1,5 +1,6 @@
+import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { EmptyState } from '@/components/EmptyState';
@@ -13,6 +14,7 @@ import { StatGrid } from '@/components/StatGrid';
 import { Txt } from '@/components/Txt';
 import { useEvent } from '@/data/events';
 import { formatTime } from '@/lib/dates';
+import { appleMapsWalkingUrl } from '@/lib/maps';
 import { colors, radius, space } from '@/theme';
 
 const WALK_MINUTES = 17;
@@ -71,7 +73,8 @@ export default function Navigate() {
       glow
       footer={
         <PrimaryButton
-          label="Start AR Walk"
+          // ponytail: "Preview" until Round 7 makes AR Walk real, then "Start AR Walk".
+          label="Preview AR Walk"
           onPress={() => router.push({ pathname: '/walk/[id]', params: { id: event.id } })}
         />
       }
@@ -97,6 +100,11 @@ export default function Navigate() {
         </View>
       </View>
 
+      <Txt variant="caption" color="textTertiary" style={styles.note}>
+        A sample picture and sample numbers, the same for every event. The live map and your
+        real route arrive in a later build. Open in Apple Maps works today.
+      </Txt>
+
       <StatGrid
         items={[
           // "Leave by" first: it is the one number to act on.
@@ -107,7 +115,15 @@ export default function Navigate() {
         ]}
       />
       <View style={styles.maps}>
-        <SecondaryButton label="Open in Apple Maps" />
+        <SecondaryButton
+          label="Open in Apple Maps"
+          accessibilityHint="Opens walking directions in the Maps app"
+          onPress={() =>
+            Linking.openURL(appleMapsWalkingUrl(event.locationText)).catch(() =>
+              Alert.alert('Could not open Maps', 'Check that the Maps app is installed.'),
+            )
+          }
+        />
       </View>
     </Screen>
   );
@@ -128,6 +144,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.mapLand,
     marginTop: space[6],
+    marginBottom: space[3],
+  },
+  note: {
     marginBottom: space[6],
   },
   badge: {
