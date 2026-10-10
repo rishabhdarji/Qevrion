@@ -1,3 +1,4 @@
+import { covers } from '@/theme';
 import type { QevrionEvent } from '@/types';
 
 // Invented events for Round 1. Hosts and venues are made up. Times are set relative to
@@ -42,7 +43,7 @@ const drafts: Draft[] = [
     hours: 3,
     locationText: 'The Glasshouse, 14 Alder Row',
     host: 'Maya Okafor',
-    cover: ['#4A2C4E', '#15202F'],
+    cover: covers.plum,
     isPartiful: true,
     url: 'https://partiful.com/e/sample',
     description:
@@ -58,7 +59,7 @@ const drafts: Draft[] = [
     hours: 2.5,
     locationText: 'Harbour Print Studio',
     host: 'Tomas Lind',
-    cover: ['#1F4A4A', '#101820'],
+    cover: covers.teal,
     hasConflict: true,
     keyDetails: ['Free entry', 'Drinks provided'],
   },
@@ -68,7 +69,7 @@ const drafts: Draft[] = [
     hours: 3,
     locationText: 'Meeple Corner Café',
     host: 'Priya Nair',
-    cover: ['#5A3024', '#1A1418'],
+    cover: covers.ember,
     isPartiful: true,
     url: 'https://partiful.com/e/sample',
     hasConflict: true,
@@ -80,7 +81,7 @@ const drafts: Draft[] = [
     hours: 3,
     locationText: 'Canal Bridge steps',
     host: 'Northside Run Club',
-    cover: ['#33492C', '#12181A'],
+    cover: covers.moss,
     keyDetails: ['8 miles, easy pace', 'Bring water'],
   },
   {
@@ -89,7 +90,7 @@ const drafts: Draft[] = [
     hours: 2.5,
     locationText: 'The Old Brewery Yard',
     host: 'Quiet Hours Collective',
-    cover: ['#2C3566', '#12141F'],
+    cover: covers.indigo,
     isPartiful: true,
     url: 'https://partiful.com/e/sample',
   },
@@ -99,7 +100,7 @@ const drafts: Draft[] = [
     hours: 2,
     locationText: 'Workshop 6, Foundry Lane',
     host: 'Local Makers',
-    cover: ['#2B4256', '#111418'],
+    cover: covers.slate,
   },
   {
     title: "Housewarming at Dev's",
@@ -107,7 +108,7 @@ const drafts: Draft[] = [
     hours: 4,
     locationText: 'Flat 3, 27 Wren Street',
     host: 'Dev Kapoor',
-    cover: ['#5A2A3C', '#17131A'],
+    cover: covers.rose,
     isPartiful: true,
     url: 'https://partiful.com/e/sample',
   },
@@ -117,7 +118,7 @@ const drafts: Draft[] = [
     hours: 4,
     locationText: 'Station Square',
     host: 'Market Friends',
-    cover: ['#57431F', '#17140F'],
+    cover: covers.ochre,
   },
   {
     title: 'Supper for Twelve',
@@ -125,7 +126,7 @@ const drafts: Draft[] = [
     hours: 3.5,
     locationText: 'Table and Vine',
     host: 'Elena Marsh',
-    cover: ['#4A2C4E', '#12141F'],
+    cover: covers.plum,
   },
   // Past events for Archive.
   {
@@ -134,7 +135,7 @@ const drafts: Draft[] = [
     hours: 3,
     locationText: 'Community Garden Hall',
     host: 'Priya Nair',
-    cover: ['#5A3024', '#17140F'],
+    cover: covers.ember,
   },
   {
     title: 'Open Mic Night',
@@ -142,7 +143,7 @@ const drafts: Draft[] = [
     hours: 2.5,
     locationText: 'The Lantern Room',
     host: 'Quiet Hours Collective',
-    cover: ['#2C3566', '#101820'],
+    cover: covers.indigo,
     isPartiful: true,
     url: 'https://partiful.com/e/sample',
   },
@@ -152,7 +153,7 @@ const drafts: Draft[] = [
     hours: 3,
     locationText: 'Ridgeway car park',
     host: 'Northside Run Club',
-    cover: ['#33492C', '#111418'],
+    cover: covers.moss,
   },
   {
     title: 'Pottery Taster Class',
@@ -160,14 +161,10 @@ const drafts: Draft[] = [
     hours: 2,
     locationText: 'Kiln and Wheel',
     host: 'Tomas Lind',
-    cover: ['#1F4A4A', '#17131A'],
+    cover: covers.teal,
   },
 ];
 
 export const sampleEvents: QevrionEvent[] = drafts
   .map((draft, index) => sample(index, draft))
   .sort((a, b) => a.startsAt - b.startsAt);
-
-export function getSampleEvent(id: string | undefined): QevrionEvent | undefined {
-  return sampleEvents.find((event) => event.id === id);
-}

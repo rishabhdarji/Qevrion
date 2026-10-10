@@ -29,6 +29,10 @@ export const colors = {
   sampleBadge: '#15293B',
   sampleBadgeText: '#8CC8F0',
 
+  // Behind controls that float over a cover, so they stay readable on any colour.
+  overlay: 'rgba(14,14,16,0.55)',
+  destructiveTint: 'rgba(240,86,74,0.12)',
+
   // The drawn map on Navigate until the real map arrives in Round 6.
   mapLand: '#1A2740',
   mapBlock: '#27375A',
@@ -37,6 +41,19 @@ export const colors = {
 } as const;
 
 export type ColorName = keyof typeof colors;
+
+// Cover washes for events without their own image: top colour, bottom colour. Both
+// ends are dark enough for off-white text to pass 4.5:1.
+export const covers = {
+  plum: ['#4A2C4E', '#15202F'],
+  teal: ['#1F4A4A', '#101820'],
+  ember: ['#5A3024', '#1A1418'],
+  moss: ['#33492C', '#12181A'],
+  indigo: ['#2C3566', '#12141F'],
+  slate: ['#2B4256', '#111418'],
+  rose: ['#5A2A3C', '#17131A'],
+  ochre: ['#57431F', '#17140F'],
+} as const satisfies Record<string, readonly [string, string]>;
 
 // Chosen by the owner on a sample screen: cards 28, small elements 17, buttons as pills.
 export const radius = {
@@ -63,6 +80,9 @@ export const size = {
   button: 56,
   pill: 40,
   chip: 36,
+  search: 48,
+  row: 64,
+  thumb: 48,
   // Smallest tap target (SPEC 6, Accessibility).
   tap: 44,
   tabBar: 64,
@@ -80,6 +100,8 @@ export const fonts = {
 export const type = {
   display: { fontFamily: fonts.serif, fontSize: 36, lineHeight: 40 },
   title: { fontFamily: fonts.serif, fontSize: 24, lineHeight: 28 },
+  // List rows: 24 pt truncates most titles on a small phone.
+  rowTitle: { fontFamily: fonts.serif, fontSize: 20, lineHeight: 24 },
   wordmark: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 32 },
   heading: { fontFamily: fonts.light, fontSize: 32, lineHeight: 38, letterSpacing: -0.3 },
   body: { fontFamily: fonts.regular, fontSize: 17, lineHeight: 25 },
@@ -91,6 +113,13 @@ export const type = {
     fontSize: 12,
     lineHeight: 16,
     letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  badge: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   tab: {
@@ -106,3 +135,6 @@ export type TypeName = keyof typeof type;
 
 // Critically damped: settles without overshoot (SPEC 6: gentle springs, nothing bouncy).
 export const spring = { damping: 120, stiffness: 900, mass: 4 } as const;
+
+// Also critically damped but about twice as fast, so a quick tap is still felt.
+export const pressSpring = { damping: 60, stiffness: 900, mass: 1 } as const;
