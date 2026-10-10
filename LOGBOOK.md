@@ -51,4 +51,9 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 33. Tried to switch the commits to GitHub's private address before pushing. The safety system blocked it because it rewrites git history. Nothing was changed and nothing has been pushed. Waiting for your decision on the email.
 34. Correction: some earlier times in this log were estimates and one (entry 29) was wrong. Estimates are now marked "about". From here on, times are read from the PC clock.
 
-**Next:** your answer on the commit email, then the first push. After that, Round 1 (design system and app shell).
+35. You chose GitHub's private address for commits. Rewrote the 13 unpushed commits to use it (same content, same dates) and set this repo to use it from now on. Your personal email is not in anything pushed.
+36. First push: `main` is now on GitHub at github.com/rishabhdarji/Qevrion.
+37. The first CI run passed: install, type-check and lint all green. GitHub noted its test machines move to a newer Ubuntu version on 19 Oct 2026; nothing to do.
+38. At your request, started a separate agent to audit privacy on what was pushed: commit details, every file and its history, ignored folders, and GitHub's own security settings.
+
+**Next:** Round 1 (design system and app shell).
