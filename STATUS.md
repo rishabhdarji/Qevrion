@@ -2,6 +2,8 @@
 
 Last updated: Round 1 complete, confirmed on the iPhone in Expo Go (10 Oct 2026). Version 0.0.1.
 
+**Waiting on the owner:** the branch `round-1-maps-and-reorder` (the "Open in Google Maps" button and the new round order) is not in `main` yet. Merge it into `main` and push once the owner confirms the Google Maps button on the phone, and before starting Round 2. Then delete this note.
+
 ## What works
 
 - Expo SDK 57 project with TypeScript (strict) and Expo Router. Round 0 was confirmed on the iPhone in Expo Go on 10 Oct 2026.
