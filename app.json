@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Qevrion",
+    "slug": "qevrion",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "scheme": "qevrion",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0E0E10",
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
