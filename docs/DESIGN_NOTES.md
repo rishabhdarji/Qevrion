@@ -96,7 +96,7 @@ An open ring with a round-ended diagonal tail passing through a gap at the lower
 ### Home, against ref 8
 - **Hero card.** Full width and about a third of the screen tall, not a narrow portrait card. The countdown sits in a small dark pill at the top left and the serif title sits at the bottom over a scrim; the reference puts the title at the top with the countdown under it.
 - **Cover.** A drawn two-colour wash with two faint rings, never a photo. No floating camera button on the card.
-- **Header.** Mark and serif wordmark on the left, a dark "Import" pill and a light "New" pill on the right. Same arrangement as the reference, our own labels and actions.
+- **Header.** Serif wordmark alone on the left (the reference has a small mark beside it; ours read as a second search icon at that size, so it was removed), a dark "Import" pill and a light "New" pill on the right.
 - **Added.** A search field and a row of filter chips, which the reference does not have (SPEC F1).
 - **Rows.** A date tile in the event's cover colour, serif title, time and venue beneath it. The reference shows a title with a date range on the right and a strip of photos.
 - **Bottom bar.** A floating capsule with text-only tabs, a raised pill under the active one and a settings gear. The reference uses icons beside the labels and a profile icon.
@@ -111,8 +111,9 @@ An open ring with a round-ended diagonal tail passing through a gap at the lower
 ### Navigate, against ref 5
 - **The map is a drawing in Round 1** (blocks, a park, a blue route with a soft halo, green and red ringed dots). The reference is a real Apple map; ours becomes one in Round 6.
 - **Corner radius 28** on the map card, the owner's choice, against about 12 in the reference.
-- **Four stats, not six:** distance, walking time, leave by, event starts. Values are set in the serif face; the reference sets them in sans.
-- **Two pinned buttons** ("Start AR Walk", "Open in Apple Maps") that the reference does not have.
+- **Four stats, not six:** leave by, walking time, distance, event starts. Values are set in the serif face; the reference sets them in sans.
+- **Two buttons the reference does not have:** "Start AR Walk" pinned at the bottom, "Open in Apple Maps" under the stats.
+- **A wider map** (4:3), so the stats stay in view above the pinned button on a real phone.
 - **Kept:** the top glow, the small uppercase overline, a light-weight title with a grey line under it, and the two-column grid of uppercase labels.
 
 ### Tokens added in Round 1

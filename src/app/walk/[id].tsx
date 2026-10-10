@@ -33,7 +33,7 @@ export default function ArWalk() {
         viewBox="0 0 390 844"
         preserveAspectRatio="xMidYMid slice"
         accessibilityRole="image"
-        accessibilityLabel="Arrow pointing ahead and slightly left"
+        accessibilityLabel="Arrow pointing ahead"
       >
         <Defs>
           <LinearGradient id="walkBackdrop" x1="0" y1="0" x2="0" y2="1">
@@ -55,7 +55,7 @@ export default function ArWalk() {
         ))}
         {/* Three chevrons shrinking toward the horizon read as an arrow on the ground. */}
         <G
-          transform="translate(0 -50) rotate(-12 195 600)"
+          transform="translate(0 -50)"
           fill="none"
           stroke={colors.accent}
           strokeLinecap="round"

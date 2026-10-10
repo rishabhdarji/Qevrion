@@ -8,6 +8,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { SampleBadge } from '@/components/SampleBadge';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { SectionLabel } from '@/components/SectionLabel';
 import { StatGrid } from '@/components/StatGrid';
 import { StepBars } from '@/components/StepBars';
 import { Txt } from '@/components/Txt';
@@ -60,9 +61,7 @@ export default function Import() {
 
       {step === 'source' ? (
         <>
-          <Txt color="textSecondary" style={styles.groupLabel}>
-            Where are your events?
-          </Txt>
+          <SectionLabel style={styles.groupLabel}>Where are your events?</SectionLabel>
           <View style={styles.stack}>
             {SOURCES.map((item, index) => (
               <Card
@@ -90,7 +89,7 @@ export default function Import() {
       {step === 'calendars' ? (
         <>
           <View style={styles.labelRow}>
-            <Txt color="textSecondary">Calendars to read</Txt>
+            <SectionLabel>Calendars to read</SectionLabel>
             <SampleBadge />
           </View>
           <Card padded={false}>
@@ -110,9 +109,7 @@ export default function Import() {
             })}
           </Card>
 
-          <Txt color="textSecondary" style={styles.groupLabel}>
-            What to bring in
-          </Txt>
+          <SectionLabel style={styles.groupLabel}>What to bring in</SectionLabel>
           <Card padded={false}>
             <ListRow title="Date range" subtitle="30 days back to 12 months ahead" />
             <ListRow

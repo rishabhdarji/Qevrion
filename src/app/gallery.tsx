@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
   },
   divider: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
     borderTopColor: colors.hairline,
   },
 });

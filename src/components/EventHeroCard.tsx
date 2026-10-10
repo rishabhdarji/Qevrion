@@ -37,7 +37,7 @@ export function EventHeroCard({ event, onPress }: Props) {
   const { height } = useWindowDimensions();
   // About a third of the screen, so a small phone still shows the first row below it.
   // It grows if large text needs more room.
-  const minHeight = Math.min(Math.max(height * 0.36, 240), 340);
+  const minHeight = Math.min(Math.max(height * 0.32, 230), 310);
 
   return (
     <PressableScale
@@ -57,9 +57,14 @@ export function EventHeroCard({ event, onPress }: Props) {
         <Txt variant="display" maxFontSizeMultiplier={1.3} numberOfLines={2}>
           {event.title}
         </Txt>
-        <Txt variant="bodySmall" numberOfLines={2}>
-          {formatWhen(event.startsAt)} · {event.locationText}
-        </Txt>
+        <View>
+          <Txt variant="bodySmall" numberOfLines={1}>
+            {formatWhen(event.startsAt)}
+          </Txt>
+          <Txt variant="bodySmall" color="textSecondary" numberOfLines={1}>
+            {event.locationText}
+          </Txt>
+        </View>
       </View>
     </PressableScale>
   );

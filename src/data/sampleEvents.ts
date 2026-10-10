@@ -39,7 +39,8 @@ function sample(index: number, { hours, ...draft }: Draft): QevrionEvent {
 const drafts: Draft[] = [
   {
     title: 'Rooftop Supper Club',
-    startsAt: loadedAt + 2 * DAY + 5 * HOUR + 20 * MINUTE,
+    // Just over two days out, on the half hour, so the hero reads "2d 5h left".
+    startsAt: Math.ceil((loadedAt + 2 * DAY + 5 * HOUR) / (30 * MINUTE)) * 30 * MINUTE,
     hours: 3,
     locationText: 'The Glasshouse, 14 Alder Row',
     host: 'Maya Okafor',

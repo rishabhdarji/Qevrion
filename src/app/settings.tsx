@@ -7,6 +7,7 @@ import { Card, ListRow } from '@/components/Card';
 import { QevrionMark } from '@/components/QevrionMark';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
 import { colors, space } from '@/theme';
 
@@ -30,9 +31,7 @@ export default function Settings() {
     <Screen glow>
       <ScreenHeader title="Settings" />
 
-      <Txt color="textSecondary" style={styles.groupLabel}>
-        Import sources
-      </Txt>
+      <SectionLabel style={styles.groupLabel}>Import sources</SectionLabel>
       <Card padded={false}>
         <ListRow
           title="iPhone Calendar"
@@ -42,9 +41,7 @@ export default function Settings() {
         <ListRow title="Calendar file" subtitle="Bring in an .ics file" divider onPress={() => router.push('/import')} />
       </Card>
 
-      <Txt color="textSecondary" style={styles.groupLabel}>
-        Reminders
-      </Txt>
+      <SectionLabel style={styles.groupLabel}>Reminders</SectionLabel>
       <Card padded={false}>
         <ListRow title="Default reminders" subtitle="1 day, 2 hours and 30 minutes before" />
         <ListRow title="Morning digest" subtitle="On days with events" divider right={<Value>8:00 AM</Value>} />
@@ -54,24 +51,18 @@ export default function Settings() {
         Open Qevrion every few days so later reminders get scheduled.
       </Txt>
 
-      <Txt color="textSecondary" style={styles.groupLabel}>
-        Navigation
-      </Txt>
+      <SectionLabel style={styles.groupLabel}>Navigation</SectionLabel>
       <Card padded={false}>
         <ListRow title="Walking routes key" subtitle="openrouteservice" status="Not set" />
         <ListRow title="Units" divider right={<Value>Miles</Value>} />
       </Card>
 
-      <Txt color="textSecondary" style={styles.groupLabel}>
-        Data
-      </Txt>
+      <SectionLabel style={styles.groupLabel}>Data</SectionLabel>
       <Card padded={false}>
         <ListRow title="Delete all data" titleColor="destructive" />
       </Card>
 
-      <Txt color="textSecondary" style={styles.groupLabel}>
-        About
-      </Txt>
+      <SectionLabel style={styles.groupLabel}>About</SectionLabel>
       <Card padded={false}>
         <ListRow title="Version" right={<Value>{version}</Value>} />
         <ListRow
@@ -82,9 +73,7 @@ export default function Settings() {
         />
       </Card>
 
-      <Txt color="textSecondary" style={styles.groupLabel}>
-        Developer
-      </Txt>
+      <SectionLabel style={styles.groupLabel}>Developer</SectionLabel>
       <Card padded={false}>
         <ListRow
           title="Component gallery"
@@ -105,7 +94,7 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   groupLabel: {
-    marginTop: space[6],
+    marginTop: space[8],
     marginBottom: space[3],
   },
   footer: {

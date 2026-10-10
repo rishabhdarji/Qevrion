@@ -8,7 +8,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { SecondaryButton } from '@/components/SecondaryButton';
 import { StepBars } from '@/components/StepBars';
 import { Txt } from '@/components/Txt';
-import { colors, covers, radius, space } from '@/theme';
+import { colors, covers, radius, size, space } from '@/theme';
 
 const PAGES = [
   {
@@ -124,7 +124,7 @@ export default function Onboarding() {
       <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
         <Defs>
           <LinearGradient id="onboardingWash" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={colors.glow} stopOpacity={0.95} />
+            <Stop offset="0" stopColor={colors.glow} stopOpacity={0.6} />
             <Stop offset="0.62" stopColor={colors.background} stopOpacity={1} />
           </LinearGradient>
         </Defs>
@@ -151,7 +151,7 @@ export default function Onboarding() {
                   <Art />
                 </Svg>
               </View>
-              <Txt variant="heading" accessibilityRole="header">
+              <Txt variant="heading" accessibilityRole="header" maxFontSizeMultiplier={1.3}>
                 {item.title}
               </Txt>
               <Txt color="textSecondary" style={styles.body}>
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   page: {
     flex: 1,
-    paddingHorizontal: space[6],
+    paddingHorizontal: size.screenPadding,
   },
   art: {
     flex: 1,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: space[6],
+    paddingHorizontal: size.screenPadding,
     gap: space[3],
   },
   steps: {

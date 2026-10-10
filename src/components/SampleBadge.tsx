@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { colors, space, type } from '@/theme';
+import { colors, radius, space, type } from '@/theme';
 
 import { Txt } from './Txt';
 
@@ -19,7 +19,7 @@ const styles = StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
     backgroundColor: colors.sampleBadge,
-    borderRadius: 6,
+    borderRadius: radius.inner,
     paddingHorizontal: space[2],
     paddingVertical: 2,
   },

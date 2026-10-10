@@ -43,7 +43,8 @@ Round 1 is look and navigation only. These are placeholders, each marked in the 
 - **Gradients.** The top glow, covers and edge fades are single `react-native-svg` views. Never put an SVG in a list row; rows use plain coloured views. React Native's built-in gradient style was left alone because it is still marked experimental in 0.86, is renamed in 0.87, and draws nothing in the web preview.
 - **Smoothness check.** Development mode is much slower than the real thing. To judge scrolling honestly, start with `npx expo start --no-dev --minify`.
 - **Splash.** The in-app Splash holds for about a second. From Round 2 it should skip straight to Home once onboarding is done.
-- **Mark at small sizes.** Under 32 pt the standard mark read as a search icon, so the tail is drawn from the ring's centre there (`QevrionMark.tsx`). Owner to confirm on the phone.
+- **Mark at small sizes.** Beside the Home wordmark at 24 pt the mark read as a second search icon, directly above the real one. The Home and Archive headers now show the serif wordmark alone. The mark appears on the Splash, onboarding page 1, the icon, empty states and the Settings footer; under 32 pt its tail is drawn from the ring's centre (`QevrionMark.tsx`). This departs from the plan, which put the mark beside the wordmark: owner to confirm, and it is a one-line change to put back.
+- **Dividers are 1 pt, not hairlines.** A hairline at 8% white nearly vanishes on a 3x iPhone screen.
 - **Source layout.** Screens live in `src/app/` (the template's layout). `@/` points at `src/`.
 - **Design references** live in `design-refs/`, which is git-ignored. Notes are in `docs/DESIGN_NOTES.md`.
 - **Design tokens (10 Oct 2026).** Lighter label grey `#85858D`: accepted. Top glow: partly accepted, subtle and not on every screen. Corner sizes chosen by the owner on a sample screen: cards 28, chips/tags/thumbnails 17, buttons fully rounded. These override SPEC section 6 (see `docs/DESIGN_NOTES.md`, Decisions).

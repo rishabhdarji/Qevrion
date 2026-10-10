@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
 import { EmptyState } from '@/components/EmptyState';
@@ -52,7 +52,6 @@ function DrawnMap() {
 // Navigate: map card, stats, and the two ways to set off.
 export default function Navigate() {
   const router = useRouter();
-  const { height } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const event = useEvent(id);
 
@@ -71,10 +70,10 @@ export default function Navigate() {
     <Screen
       glow
       footer={
-        <>
-          <PrimaryButton label="Start AR Walk" onPress={() => router.push({ pathname: '/walk/[id]', params: { id: event.id } })} />
-          <SecondaryButton label="Open in Apple Maps" />
-        </>
+        <PrimaryButton
+          label="Start AR Walk"
+          onPress={() => router.push({ pathname: '/walk/[id]', params: { id: event.id } })}
+        />
       }
     >
       <ScreenHeader />
@@ -87,8 +86,7 @@ export default function Navigate() {
       </Txt>
 
       <View
-        // Square where there is room; wider on a short phone so the stats stay in view.
-        style={[styles.map, { aspectRatio: height < 700 ? 4 / 3 : 1 }]}
+        style={styles.map}
         accessible
         accessibilityRole="image"
         accessibilityLabel="Sample map showing a walking route from your position to the venue"
@@ -101,12 +99,16 @@ export default function Navigate() {
 
       <StatGrid
         items={[
-          { label: 'Distance', value: '0.8 mi' },
-          { label: 'Walking time', value: `${WALK_MINUTES} min` },
+          // "Leave by" first: it is the one number to act on.
           { label: 'Leave by', value: formatTime(leaveBy) },
+          { label: 'Walking time', value: `${WALK_MINUTES} min` },
+          { label: 'Distance', value: '0.8 mi' },
           { label: 'Event starts', value: formatTime(event.startsAt) },
         ]}
       />
+      <View style={styles.maps}>
+        <SecondaryButton label="Open in Apple Maps" />
+      </View>
     </Screen>
   );
 }
@@ -116,7 +118,12 @@ const styles = StyleSheet.create({
     marginTop: space[2],
     marginBottom: space[1],
   },
+  maps: {
+    marginTop: space[6],
+  },
   map: {
+    // Wider than tall, so the stats stay in view above the pinned button.
+    aspectRatio: 4 / 3,
     borderRadius: radius.card,
     overflow: 'hidden',
     backgroundColor: colors.mapLand,

@@ -137,7 +137,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   divider: {
-    borderTopWidth: StyleSheet.hairlineWidth,
+    // A full point: a hairline at 8% white all but disappears on a 3x screen.
+    borderTopWidth: 1,
     borderTopColor: colors.hairline,
   },
 });

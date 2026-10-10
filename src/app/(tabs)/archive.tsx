@@ -3,7 +3,6 @@ import { FlatList, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/EmptyState';
 import { EVENT_ROW_TEXT_INSET, EventRow } from '@/components/EventRow';
-import { QevrionMark } from '@/components/QevrionMark';
 import { Screen, useScreenPadding } from '@/components/Screen';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
@@ -50,12 +49,14 @@ export default function Archive() {
         renderItem={renderItem}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.wordmark} accessible accessibilityRole="header" accessibilityLabel="Qevrion">
-              <QevrionMark size={24} />
-              <Txt variant="wordmark" maxFontSizeMultiplier={1.2}>
-                Qevrion
-              </Txt>
-            </View>
+            <Txt
+              variant="wordmark"
+              accessibilityRole="header"
+              maxFontSizeMultiplier={1.2}
+              style={styles.wordmark}
+            >
+              Qevrion
+            </Txt>
             <Txt variant="heading" accessibilityRole="header">
               Archive
             </Txt>
@@ -82,11 +83,9 @@ const styles = StyleSheet.create({
     marginBottom: space[6],
   },
   wordmark: {
-    minHeight: size.tap,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[2],
-    marginBottom: space[4],
+    // Same height as the Home header row, so the two tabs line up.
+    marginVertical: (size.tap - 32) / 2,
+    marginBottom: space[4] + (size.tap - 32) / 2,
   },
   label: {
     marginBottom: space[3],
@@ -95,7 +94,7 @@ const styles = StyleSheet.create({
     marginTop: space[8],
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
+    height: 1,
     marginLeft: EVENT_ROW_TEXT_INSET,
     backgroundColor: colors.hairline,
   },

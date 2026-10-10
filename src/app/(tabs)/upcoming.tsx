@@ -8,7 +8,6 @@ import { EventHeroCard } from '@/components/EventHeroCard';
 import { EVENT_ROW_TEXT_INSET, EventRow } from '@/components/EventRow';
 import { Icon } from '@/components/Icon';
 import { Pill } from '@/components/Pill';
-import { QevrionMark } from '@/components/QevrionMark';
 import { Screen, useScreenPadding } from '@/components/Screen';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
@@ -44,12 +43,9 @@ function HomeHeader({ total, query, onQuery, filter, onFilter }: HeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.topRow}>
-        <View style={styles.wordmark} accessible accessibilityRole="header" accessibilityLabel="Qevrion">
-          <QevrionMark size={24} />
-          <Txt variant="wordmark" maxFontSizeMultiplier={1.2}>
-            Qevrion
-          </Txt>
-        </View>
+        <Txt variant="wordmark" accessibilityRole="header" maxFontSizeMultiplier={1.2}>
+          Qevrion
+        </Txt>
         <View style={styles.actions}>
           <Pill
             label="Import"
@@ -203,11 +199,6 @@ const styles = StyleSheet.create({
     gap: space[3],
     marginBottom: space[4],
   },
-  wordmark: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[2],
-  },
   actions: {
     flexDirection: 'row',
     gap: space[2],
@@ -251,7 +242,7 @@ const styles = StyleSheet.create({
     marginTop: space[8],
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
+    height: 1,
     marginLeft: EVENT_ROW_TEXT_INSET,
     backgroundColor: colors.hairline,
   },

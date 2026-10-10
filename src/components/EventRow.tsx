@@ -34,7 +34,7 @@ export function EventRow({ event, muted = false, onPress }: Props) {
         <Txt variant="rowTitle" maxFontSizeMultiplier={1.2}>
           {date.getDate()}
         </Txt>
-        <Txt variant="badge" maxFontSizeMultiplier={1.2} style={styles.month}>
+        <Txt variant="badge" maxFontSizeMultiplier={1.2}>
           {date.toLocaleDateString(undefined, { month: 'short' })}
         </Txt>
       </View>
@@ -77,11 +77,8 @@ const styles = StyleSheet.create({
     borderColor: colors.hairline,
   },
   mutedTile: {
-    opacity: 0.6,
-  },
-  month: {
-    fontSize: 10,
-    lineHeight: 12,
+    // Quieter, but the date on it is still the only place the date shows.
+    opacity: 0.75,
   },
   text: {
     flex: 1,
