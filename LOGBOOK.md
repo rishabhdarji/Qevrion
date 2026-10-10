@@ -56,4 +56,9 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 37. The first CI run passed: install, type-check and lint all green. GitHub noted its test machines move to a newer Ubuntu version on 19 Oct 2026; nothing to do.
 38. At your request, started a separate agent to audit privacy on what was pushed: commit details, every file and its history, ignored folders, and GitHub's own security settings.
 
-**Next:** Round 1 (design system and app shell).
+39. You asked for a pull request. Moved the uncommitted doc changes to a new branch, `round-0-ci-docs`, pushed it and opened pull request 1 into `main`.
+40. The privacy audit finished. Nothing private is public: no email, key, token, location or event data in any file, commit or CI log, and `design-refs/` never entered the history. GitHub's secret scanning and push protection are both on.
+41. Closed two gaps the audit found. `.gitignore` now ignores every `.env` file (it only ignored `.env.local` ones), plus calendar exports (`.ics`), database files and app builds, so real event data can't be committed by accident. The CI workflow now runs with read-only access to the repo.
+42. Left for you to decide (details in the chat): your PC's global git setting still uses your personal email for other projects; the old pre-rewrite commits still exist on this PC as a local backup; and commit times show your time zone.
+
+**Next:** Round 1 (design system and app shell). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.

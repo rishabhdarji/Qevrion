@@ -33,6 +33,7 @@ Last updated: Round 0 complete (10 Oct 2026). Version 0.0.1.
 - **Git.** Work happens on `round-N-short-name` branches and merges to `main` after the round is confirmed on the phone.
 - **GitHub.** `main` is pushed to the public repo `rishabhdarji/Qevrion` (first push 10 Oct 2026). Commits use GitHub's private noreply address, set in this repo's local git config; the owner's personal email must stay out of commits. The owner's standing instruction is to push `main` at each important milestone without asking each time, after checking nothing private is in the commits. Never force-push.
 - **CI.** `.github/workflows/ci.yml` runs `npm ci`, type-check and lint on every push. First run passed. Add `npm test` in Round 2.
+- **Privacy audit (10 Oct 2026).** Everything public was checked and found clean. Follow-ups applied: `.gitignore` ignores all `.env*` files, `*.ics`, `*.db`, `*.sqlite`, `*.ipa`, `*.cer` and `*.keystore`; CI has read-only permissions. Round 3 must add a `.gitignore` exception for its invented `.ics` test fixtures. Still open for the owner: the PC's global git email is the personal address (only this repo is set to noreply); local backup refs under `refs/original/` hold the pre-rewrite commits and must never be pushed (do not use `git push --mirror`); commit timestamps reveal the owner's time zone.
 - **CD.** Nothing to deploy yet. Planned: site to GitHub Pages (Round 9), unsigned `.ipa` build (Round 10).
 
 ## Tools on this PC
