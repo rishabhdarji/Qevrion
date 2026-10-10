@@ -109,7 +109,7 @@ An open ring with a round-ended diagonal tail passing through a gap at the lower
 - **Kept from the references:** left-aligned light-weight headline, softer body text, a cream pill button with an outlined "Not now" directly beneath it.
 
 ### Navigate, against ref 5
-- **The map is a drawing in Round 1** (blocks, a park, a blue route with a soft halo, green and red ringed dots). The reference is a real Apple map; ours becomes one in Round 6.
+- **The map is a drawing in Round 1** (blocks, a park, a blue route with a soft halo, green and red ringed dots). The reference is a real Apple map; ours becomes one in Round 4.
 - **Corner radius 28** on the map card, the owner's choice, against about 12 in the reference.
 - **Four stats, not six:** leave by, walking time, distance, event starts. Values are set in the serif face; the reference sets them in sans.
 - **Two buttons the reference does not have:** "Start AR Walk" pinned at the bottom, "Open in Apple Maps" under the stats.

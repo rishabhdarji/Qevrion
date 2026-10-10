@@ -98,4 +98,13 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 73. **Not fixable in this round.** A real map with your position and a walking route is Round 6. The camera view with a moving arrow is Round 7.
 74. **Merged and pushed.** You had already merged the earlier docs pull request on GitHub. Round 1 was merged into `main` on top of it and pushed.
 
-**Next:** Round 2 (database and manual events), unless you want the map and AR rounds moved earlier. Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.
+## Round order changed, Google Maps added
+
+75. **Your answers.** "Open in Apple Maps" works on your phone. You asked for Google Maps as well, and for the rounds to be reordered so the map and AR Walk come sooner.
+76. **New order, renumbered to match.** 2 database, 3 import, 4 map and walking route, 5 AR Walk, 6 reminders, 7 key details, weather and conflicts, then 8 to 10 as before. The map cannot come before Round 3, because that round turns addresses into map coordinates. Entries above this one use the old numbers: map 6, AR Walk 7, reminders 4, key details 5.
+77. **Updated to match.** The roadmap in the README, the status file, the design notes, the comments in the code that name a round, and the build prompts.
+78. **Google Maps.** Navigate now has "Open in Google Maps" under "Open in Apple Maps". It is a plain link, so it needs no Google key and costs nothing. It opens the Google Maps app if you have it, and the Google Maps website if you do not. The spec says so now too.
+79. **Checked in a browser.** The button opens walking directions in Google Maps. One thing to expect: the sample venues are invented, and Google guesses a real place with a similar name, so for sample events it leads somewhere meaningless. Real events will have real addresses.
+80. **Not merged yet.** This sits on its own branch until you have tried the Google Maps button on the phone.
+
+**Next:** your check of the Google Maps button, then Round 2 (database and manual events). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.

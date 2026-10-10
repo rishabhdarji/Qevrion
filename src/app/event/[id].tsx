@@ -22,7 +22,7 @@ import { colors, radius, size, space } from '@/theme';
 const CHECKLIST = ['Reply to the host', 'Sort out a lift home', 'Pick up something to bring'];
 
 // Event detail. Laid out in Round 1; notes, checklist, weather and key details
-// become real in Round 5.
+// become real in Round 7.
 export default function EventDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();

@@ -110,7 +110,7 @@ export default function Onboarding() {
   const [footerHeight, setFooterHeight] = useState(220);
 
   // ponytail: nothing is asked for or imported here yet. The real calendar import is
-  // Round 3 and the notification permission is Round 4; until then both buttons move on.
+  // Round 3 and the notification permission is Round 6; until then both buttons move on.
   const finish = () => router.replace('/upcoming');
   const goTo = (index: number) => {
     if (index >= PAGES.length) return finish();
