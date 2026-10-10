@@ -27,4 +27,10 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 18. Opened the preview. It shows "Qevrion 0.0.1" on a near-black screen with no console errors. This is the web version of the screen, so it proves the code runs, not that the phone works. Also confirmed the terminal is now signed in to Expo.
 19. Git-ignored the local tool settings folder so local tool settings stay out of the public repo.
 
-**Waiting on you:** open the app in Expo Go on the iPhone (sign in to the same Expo account in the app, then scan the QR code in your terminal). Round 0 is done when you see "Qevrion 0.0.1" on the phone.
+## 10 Oct 2026: Round 0 confirmed
+
+20. You confirmed "Qevrion 0.0.1" shows in the centre of the screen on the iPhone. Round 0 is done.
+21. Found `@expo/ngrok` newly added to `package.json`. Expo adds it the first time tunnel mode runs, so it looks like the phone was opened through `npx expo start --tunnel`. It is free and only used during development, so it is kept.
+22. Updated `STATUS.md`, committed, and merged `round-0-preflight` into `main`. Nothing has been pushed to GitHub.
+
+**Next:** Round 1 (design system and app shell).

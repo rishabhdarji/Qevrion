@@ -1,11 +1,11 @@
 # Qevrion status
 
-Last updated: Round 0 (10 Oct 2026). Version 0.0.1.
+Last updated: Round 0 complete (10 Oct 2026). Version 0.0.1.
 
 ## What works
 
 - Expo SDK 57 project with TypeScript (strict) and Expo Router.
-- One screen: near-black background with "Qevrion 0.0.1" in the centre. The version is read from `app.json`.
+- One screen: near-black background with "Qevrion 0.0.1" in the centre. The version is read from `app.json`. Confirmed on the iPhone in Expo Go on 10 Oct 2026.
 - `npm run typecheck`, `npm run lint` and `npx expo-doctor` all pass. An iOS bundle exports cleanly.
 
 ## What is stubbed or missing
@@ -18,7 +18,6 @@ Last updated: Round 0 (10 Oct 2026). Version 0.0.1.
 ## Known issues
 
 - None in the app.
-- Not yet confirmed on the iPhone. Round 0 is done only once "Qevrion 0.0.1" shows in Expo Go.
 
 ## Decisions
 
@@ -28,6 +27,8 @@ Last updated: Round 0 (10 Oct 2026). Version 0.0.1.
 - **Scaffold.** Started from the official `default@sdk-57` template, then removed its demo screens, components and Expo-branded images. Its packages are still installed; prune in Round 1 once the design system shows what is used.
 - **Source layout.** Screens live in `src/app/` (the template's layout). `@/` points at `src/`.
 - **Design references** live in `design-refs/`, which is git-ignored. Notes are in `docs/DESIGN_NOTES.md`, including three token changes to decide in Round 1.
+- **Tunnel mode.** `@expo/ngrok` is a dev dependency, added by Expo when `npx expo start --tunnel` was run. Use `--tunnel` whenever the phone can't reach the PC over Wi-Fi.
+- **Preview.** the local preview config (git-ignored) attaches the desktop preview to a dev server that is already running on port 8081. Start the server yourself with `npx expo start` first.
 - **Git.** Work happens on `round-N-short-name` branches and merges to `main` after the round is confirmed on the phone. Nothing has been pushed.
 
 ## Tools on this PC
