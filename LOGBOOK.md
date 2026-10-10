@@ -41,4 +41,6 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 
 27. You clarified the corners look too round in general and that you'll send a picture for shapes later. Recorded in `docs/DESIGN_NOTES.md`: this overrides the spec's corner sizes, shapes stay adjustable in one place, and Round 1 asks for your picture before finalising them.
 
+28. Showed you an interactive corner picker in the chat: a sample Qevrion screen with sliders for cards, chips and buttons, plus five presets from sharp to the spec's 24. Waiting for you to pick, or to send your own reference picture.
+
 **Next:** Round 1 (design system and app shell).
