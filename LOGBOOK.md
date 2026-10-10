@@ -66,4 +66,26 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 47. You asked for the time zone to be kept private. Every commit timestamp is now recorded in UTC and this log carries no clock times. To leave nothing old behind, you deleted the GitHub repo and created it again, and the cleaned history was pushed to the fresh repo.
 48. Reopened the pull request in the fresh repo for the README and the privacy follow-ups.
 
-**Next:** Round 1 (design system and app shell). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.
+## Round 1: design system and app shell
+
+49. **Read and planned.** Read the rules, spec sections 5 and 6, the design notes, the status file and all eight reference images. Checked the installed packages and Expo's docs for anything the plan relied on. Wrote the plan; you approved it.
+50. **The mark.** Showed you three ring-with-a-tail options in the chat. You picked B, the open ring with the tail passing through a gap.
+51. **Branch.** Started `round-1-design-shell` from the docs branch, which has the latest files. The open pull request was left alone.
+52. **Packages.** Added the SVG drawing library, haptics, and the two font families (Inter and Instrument Serif). For development only: the test runner and an image tool. Removed three template packages nothing used. All free, all confirmed to run inside Expo Go.
+53. **Theme.** One file now holds every colour, size, corner radius, text style and animation setting, including your choices: cards 28, small elements 17, pill buttons, the lighter label grey.
+54. **Icon and launch image.** Drew the mark as an SVG and wrote a small script that turns it into the app icon and the launch image. First try was too small inside the icon; enlarged it.
+55. **Specialists.** Part-way through you asked for three specialists: a researcher, a system designer and a UI/UX designer. They worked as advisers and reviewers while the build continued, so nobody edited the same files at once. The researcher's findings were passed to the system designer to settle on one list.
+56. **What the researcher found.** Import fonts one weight at a time (the package's main entry would bundle 18 files; we now bundle 5). A faster list library exists and works in Expo Go. React Native has a built-in gradient style. Judge smoothness with development mode switched off.
+57. **What the system designer decided.** Keep the drawn glow and covers as they are (one per screen is cheap; the built-in gradient is still experimental and is being renamed). Use the built-in list rather than a new library, over one flat array, so 100 or more events need no rework in Round 2. Found a real bug: Home read the clock in a way that froze "now" until you typed or tapped; fixed with a once-a-minute tick, so the hero moves on when an event ends.
+58. **What the UI/UX designer changed.** Hero card with the countdown in a pill at the top and the serif title at the bottom; smaller serif titles in rows so they are not cut off; date tiles; a capsule tab bar with a raised pill under the active tab; edges that fade instead of cutting off; quicker press feedback; a light tick on chips and tabs; onboarding artwork that shrinks on small phones.
+59. **Left out on purpose.** A serif onboarding headline (the spec asks for a light-weight one), a "Sketch" label on the map (the rule says "Sample"), sliding animations on the tab pill, and blur.
+60. **Components.** Built the eleven asked for and the small helpers they need. Each press shrinks slightly and settles back without bouncing.
+61. **Screens.** Built all ten as navigable shells on thirteen invented events, each labelled "Sample": Splash, onboarding, Home, Archive, event detail, add/edit, import, Navigate, AR Walk, Settings. Plus the component gallery, opened from Settings.
+62. **Tests.** Eleven tests: the countdown text ("3d 8h left" down to "Now") and the function that arranges Home and Archive. Added the test step to CI.
+63. **A type-check failure and its cause.** Navigation to the event screens failed type-checking. Cause: the running dev server rewrites the route types in a way that rejects one style of link. Switched those links to the other style, which always passes.
+64. **Checked in the desktop preview.** Opened every screen at phone size: right content, no errors, nothing running off the edge. Two things looked wrong and were fixed: beside the wordmark the small mark read as a search icon (the tail is now drawn from the ring's centre at small sizes), and the Sample badge squeezed each row's second line (it now sits on the title line).
+65. **A preview limit.** The preview stops drawing when the app window is behind another window, so the animated page-turn in onboarding could not be exercised there. The pages themselves were checked; the swipe is for your phone.
+66. **Checks.** Type-check, lint, tests and Expo's doctor all pass. An iPhone bundle builds.
+67. **Docs.** Updated the status file and added a "where the build differs from the references" section to the design notes.
+
+**Next:** your test of Round 1 on the iPhone. Nothing is merged or pushed until you confirm. Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.

@@ -88,6 +88,36 @@ Written in Round 0 from the eight images in `design-refs/` (kept out of the repo
 
 Checked and fine as they are: primary text 16.81:1, secondary 7.70:1, accent 8.21:1, destructive 5.63:1, button label on cream 16.19:1 (all against the background).
 
+## Round 1: what was built, and where it differs from the references
+
+### The mark
+An open ring with a round-ended diagonal tail passing through a gap at the lower right: a "Q" and a compass needle. The owner chose it from three options. Ref 1's mark is a closed ring with a flat bar above it; ours has a gap, a diagonal tail and no bar. Under 32 pt the tail is drawn from the ring's centre, because at that size the standard drawing read as a search icon.
+
+### Home, against ref 8
+- **Hero card.** Full width and about a third of the screen tall, not a narrow portrait card. The countdown sits in a small dark pill at the top left and the serif title sits at the bottom over a scrim; the reference puts the title at the top with the countdown under it.
+- **Cover.** A drawn two-colour wash with two faint rings, never a photo. No floating camera button on the card.
+- **Header.** Mark and serif wordmark on the left, a dark "Import" pill and a light "New" pill on the right. Same arrangement as the reference, our own labels and actions.
+- **Added.** A search field and a row of filter chips, which the reference does not have (SPEC F1).
+- **Rows.** A date tile in the event's cover colour, serif title, time and venue beneath it. The reference shows a title with a date range on the right and a strip of photos.
+- **Bottom bar.** A floating capsule with text-only tabs, a raised pill under the active one and a settings gear. The reference uses icons beside the labels and a profile icon.
+- **Glow.** Off on Home, as decided.
+
+### Onboarding, against refs 2 and 7
+- **Artwork is drawn**, one simple composition per page (the mark, a stack of event cards, a timeline that rings out), over a slate-to-black wash. The references use full-bleed photographs of a product.
+- **No wordmark on the pages**; the mark belongs to the Splash and to page 1's artwork.
+- **Three pages with a step indicator**, where each reference is a single screen.
+- **Kept from the references:** left-aligned light-weight headline, softer body text, a cream pill button with an outlined "Not now" directly beneath it.
+
+### Navigate, against ref 5
+- **The map is a drawing in Round 1** (blocks, a park, a blue route with a soft halo, green and red ringed dots). The reference is a real Apple map; ours becomes one in Round 6.
+- **Corner radius 28** on the map card, the owner's choice, against about 12 in the reference.
+- **Four stats, not six:** distance, walking time, leave by, event starts. Values are set in the serif face; the reference sets them in sans.
+- **Two pinned buttons** ("Start AR Walk", "Open in Apple Maps") that the reference does not have.
+- **Kept:** the top glow, the small uppercase overline, a light-weight title with a grey line under it, and the two-column grid of uppercase labels.
+
+### Tokens added in Round 1
+`rowTitle` (serif 20/24, because 24 pt truncated most row titles on a small phone), `badge` (11/14 for the Sample badge), `covers` (eight dark two-colour washes), `overlay` and `destructiveTint`, `size.search`, `size.row`, `size.thumb`, and `pressSpring` (a faster, still non-bouncy spring for press release).
+
 ## Where Qevrion should deliberately differ
 
 - The home reference's hero is a narrow portrait card. SPEC F1 asks for a large hero card, so ours is full width.
