@@ -31,7 +31,15 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env*
+
+# private data and build outputs that must never be committed
+*.ics
+*.db
+*.sqlite
+*.ipa
+*.cer
+*.keystore
 
 # typescript
 *.tsbuildinfo
@@ -44,4 +52,3 @@ example
 
 # mood references, not for the public repo
 design-refs/
-
