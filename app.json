@@ -7,7 +7,18 @@
     "scheme": "qevrion",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0E0E10",
-    "plugins": ["expo-router"],
+    "icon": "./assets/images/icon.png",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0E0E10",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
