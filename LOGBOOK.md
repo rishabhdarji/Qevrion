@@ -4,7 +4,7 @@ A plain-language record of what was done in each session and why. Newest entries
 
 ## 10 Oct 2026: Round 0, preflight and hello world
 
-Entries 1 to 12 were written after the fact, in the order they happened. Timed entries start at 13.
+Entries 1 to 12 were written after the fact, in the order they happened. Timed entries start at 13. Times marked "about" are estimates; the others were read from the PC clock.
 
 1. **Read the rules.** Read the project rules, the spec and the build plan. Round 0 is setup only, no features.
 2. **Checked the PC.** Node 24.20.0, npm 11.19.1 and Git 2.56.0 were installed. GitHub CLI was missing. You installed it during the session (2.102.0). It is not signed in yet, which is fine until Round 8.
@@ -45,4 +45,10 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 
 29. You picked the shapes in the corner picker: cards 28, chips and thumbnails 17, buttons as full pills. Recorded in `docs/DESIGN_NOTES.md` and `STATUS.md`. This is slightly rounder than the spec's 24 and 16, and replaces the earlier "too round" note.
 
-**Next:** Round 1 (design system and app shell).
+30. You asked for CI on GitHub and for milestones to be pushed so progress is visible. Found your GitHub repo already exists, is public and is empty. Added `.github/workflows/ci.yml`: on every push GitHub installs the packages and runs type-check and lint. Tests get added to it in Round 2.
+31. "Continuous deployment" has nothing to deploy yet. The website deploy comes in Round 9 and the installable app build in Round 10; both are already planned as GitHub Actions.
+32. Privacy check before the first push: scanned every tracked file for keys, tokens and email addresses and found none. But the commits themselves carry your personal email address, which becomes public and permanent on a public repo.
+33. Tried to switch the commits to GitHub's private address before pushing. The safety system blocked it because it rewrites git history. Nothing was changed and nothing has been pushed. Waiting for your decision on the email.
+34. Correction: some earlier times in this log were estimates and one (entry 29) was wrong. Estimates are now marked "about". From here on, times are read from the PC clock.
+
+**Next:** your answer on the commit email, then the first push. After that, Round 1 (design system and app shell).
