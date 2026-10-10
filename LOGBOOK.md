@@ -63,4 +63,7 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 
 46. You asked for no tool credits in the repo. Removed the co-author line from every commit message and the footer from the pull request. The working-rules file and the build-prompts file are now kept on the PC only, out of the repo and its history, and the docs were reworded to match.
 
+47. You asked for the time zone to be kept private. Every commit timestamp is now recorded in UTC and this log carries no clock times. To leave nothing old behind, you deleted the GitHub repo and created it again, and the cleaned history was pushed to the fresh repo.
+48. Reopened the pull request in the fresh repo for the README and the privacy follow-ups.
+
 **Next:** Round 1 (design system and app shell). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.
