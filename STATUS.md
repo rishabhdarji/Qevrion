@@ -35,4 +35,4 @@ Last updated: Round 0 complete (10 Oct 2026). Version 0.0.1.
 ## Tools on this PC
 
 - Node 24.20.0, npm 11.19.1, Git 2.56.0, GitHub CLI 2.102.0.
-- GitHub CLI is installed. As of 10 Oct 2026 `gh auth status` still reports not signed in, so `gh auth login` needs finishing (through the browser step) before Round 8.
+- GitHub CLI is signed in over HTTPS (confirmed 10 Oct 2026) with the `repo` and `workflow` scopes, which is what Round 8 needs to create the repo and push the CI workflow.
