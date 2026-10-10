@@ -33,4 +33,8 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 21. Found `@expo/ngrok` newly added to `package.json`. Expo adds it the first time tunnel mode runs, so it looks like the phone was opened through `npx expo start --tunnel`. It is free and only used during development, so it is kept.
 22. Updated `STATUS.md`, committed, and merged `round-0-preflight` into `main`. Nothing has been pushed to GitHub.
 
+23. Explained the three proposed design token changes with a side-by-side picture, and that HTTPS is the option to pick in `gh auth login`.
+24. Recorded your decisions in `docs/DESIGN_NOTES.md`: lighter label grey accepted; top glow partly accepted (subtle, not everywhere); the card corner split rejected. Whether you want less rounding overall is left as a question for Round 1.
+25. Checked the GitHub sign-in. `gh auth status` still says not logged in and no saved login exists on this PC, so the login did not finish. Not needed until Round 8.
+
 **Next:** Round 1 (design system and app shell).

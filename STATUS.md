@@ -26,7 +26,8 @@ Last updated: Round 0 complete (10 Oct 2026). Version 0.0.1.
 - **SDK 58 is in beta.** When it goes stable the App Store Expo Go will move to 58 and stop opening SDK 57 projects. Plan a short upgrade step when that happens.
 - **Scaffold.** Started from the official `default@sdk-57` template, then removed its demo screens, components and Expo-branded images. Its packages are still installed; prune in Round 1 once the design system shows what is used.
 - **Source layout.** Screens live in `src/app/` (the template's layout). `@/` points at `src/`.
-- **Design references** live in `design-refs/`, which is git-ignored. Notes are in `docs/DESIGN_NOTES.md`, including three token changes to decide in Round 1.
+- **Design references** live in `design-refs/`, which is git-ignored. Notes are in `docs/DESIGN_NOTES.md`.
+- **Design tokens (10 Oct 2026).** Lighter label grey `#85858D`: accepted. Top glow: partly accepted, subtle and not on every screen. Card radius split: rejected; whether to reduce rounding overall is an open question for Round 1.
 - **Tunnel mode.** `@expo/ngrok` is a dev dependency, added by Expo when `npx expo start --tunnel` was run. Use `--tunnel` whenever the phone can't reach the PC over Wi-Fi.
 - **Preview.** the local preview config (git-ignored) attaches the desktop preview to a dev server that is already running on port 8081. Start the server yourself with `npx expo start` first.
 - **Git.** Work happens on `round-N-short-name` branches and merges to `main` after the round is confirmed on the phone. Nothing has been pushed.
@@ -34,4 +35,4 @@ Last updated: Round 0 complete (10 Oct 2026). Version 0.0.1.
 ## Tools on this PC
 
 - Node 24.20.0, npm 11.19.1, Git 2.56.0, GitHub CLI 2.102.0.
-- GitHub CLI is installed but not signed in. Run `gh auth login` before Round 8.
+- GitHub CLI is installed. As of 10 Oct 2026 `gh auth status` still reports not signed in, so `gh auth login` needs finishing (through the browser step) before Round 8.

@@ -75,6 +75,12 @@ Written in Round 0 from the eight images in `design-refs/` (kept out of the repo
 2. **Two card radii, not one.** The references use about 24 pt for photo and hero cards and about 12 to 16 pt for list and map cards. Suggest 24 for `EventHeroCard` and photo cards, 16 for grouped list cards and the map card. The spec already has both numbers; this just says which goes where.
 3. **Top glow is not everywhere.** It appears on header-led screens (detail, navigate, settings, import) and not on the home reference. Suggest `Screen` takes a glow on/off option, with Home using it faintly or not at all.
 
+### Decisions (10 Oct 2026)
+
+1. **Label grey: accepted.** Readable tertiary text uses `#85858D`. `#6B6B73` stays only for decoration.
+2. **Card radius split: rejected.** The owner did not like the corner rounding shown. Until they say otherwise, use the spec as written (cards 24, inner elements 16) and do not introduce the 24/16 split by card type. Open question for Round 1: whether they want less rounding overall. Show the hero card on the phone and ask before building the other cards.
+3. **Top glow: partly accepted** ("maybe some of it"). `Screen` gets a glow on/off option. Use it sparingly and keep it subtle: on for header-led screens, off on Home. Confirm by eye in Round 1.
+
 Checked and fine as they are: primary text 16.81:1, secondary 7.70:1, accent 8.21:1, destructive 5.63:1, button label on cream 16.19:1 (all against the background).
 
 ## Where Qevrion should deliberately differ
