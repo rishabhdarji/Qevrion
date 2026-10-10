@@ -39,4 +39,6 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 
 26. You finished `gh auth login`. Confirmed: GitHub CLI is signed in over HTTPS with the permissions Round 8 needs (create the repo, push code and the CI workflow).
 
+27. You clarified the corners look too round in general and that you'll send a picture for shapes later. Recorded in `docs/DESIGN_NOTES.md`: this overrides the spec's corner sizes, shapes stay adjustable in one place, and Round 1 asks for your picture before finalising them.
+
 **Next:** Round 1 (design system and app shell).

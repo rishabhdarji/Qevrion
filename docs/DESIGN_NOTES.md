@@ -78,7 +78,7 @@ Written in Round 0 from the eight images in `design-refs/` (kept out of the repo
 ### Decisions (10 Oct 2026)
 
 1. **Label grey: accepted.** Readable tertiary text uses `#85858D`. `#6B6B73` stays only for decoration.
-2. **Card radius split: rejected.** The owner did not like the corner rounding shown. Until they say otherwise, use the spec as written (cards 24, inner elements 16) and do not introduce the 24/16 split by card type. Open question for Round 1: whether they want less rounding overall. Show the hero card on the phone and ask before building the other cards.
+2. **Corner rounding: too round, shapes on hold.** The owner finds the corners too round in general, having seen cards at radius 24 and 16. This overrides the spec's "cards radius 24, inner elements 16". They plan to send a reference picture for shapes later. Until it arrives: keep every radius as a named token in the theme file so one edit changes the whole app, start noticeably tighter than the spec, and ask for the picture at the start of Round 1 before finalising any shape. Not discussed: whether the fully rounded pill buttons are also too round. Ask.
 3. **Top glow: partly accepted** ("maybe some of it"). `Screen` gets a glow on/off option. Use it sparingly and keep it subtle: on for header-led screens, off on Home. Confirm by eye in Round 1.
 
 Checked and fine as they are: primary text 16.81:1, secondary 7.70:1, accent 8.21:1, destructive 5.63:1, button label on cream 16.19:1 (all against the background).
