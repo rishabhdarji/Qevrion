@@ -43,4 +43,6 @@ Entries 1 to 12 were written after the fact, in the order they happened. Timed e
 
 28. Showed you an interactive corner picker in the chat: a sample Qevrion screen with sliders for cards, chips and buttons, plus five presets from sharp to the spec's 24. Waiting for you to pick, or to send your own reference picture.
 
+29. You picked the shapes in the corner picker: cards 28, chips and thumbnails 17, buttons as full pills. Recorded in `docs/DESIGN_NOTES.md` and `STATUS.md`. This is slightly rounder than the spec's 24 and 16, and replaces the earlier "too round" note.
+
 **Next:** Round 1 (design system and app shell).
