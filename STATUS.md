@@ -94,6 +94,6 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 
 ## Round 3 in progress (import)
 
-- **Where.** Built in a second checkout of the repo (a git worktree) in a folder beside the project, on branch `round-3-import`, because Round 2 was still being worked on in the main folder. It stacks on `round-2-database` and merges after it.
+- **Where.** Built in a second checkout of the repo (a git worktree) in a folder beside the project, on branch `round-3-import`, because other work was going on in the main folder. It sits on top of `main` and goes in through a pull request. The event photo add-on adds schema step 2, so the importer's schema change is step 3 and must be written after that add-on is in `main`; a re-sync must never overwrite an event's photo.
 - **Calendar package.** In SDK 57 the main `expo-calendar` entry point throws inside Expo Go. Import from `expo-calendar/legacy`, which Expo's SDK 57 docs list for Expo Go (checked 11 Oct 2026). No plugin entry in `app.json` is needed until the standalone build.
 - **Temporary.** `src/app/debug-calendar.tsx` and its Settings row (Developer, "Calendar debug") show raw calendar fields. Remove both at the end of Round 3. Not yet tried on a phone.
