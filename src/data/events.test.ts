@@ -1,11 +1,14 @@
-import type { EventFields } from '../types';
+import type { EventFields, ImportedEvent } from '../types';
 import {
   deleteAllData,
   getEvents,
+  importEvents,
   insertSampleEvents,
+  nextPendingAddress,
   removeEvent,
   removeSampleEvents,
   saveEvent,
+  setGeocode,
 } from './events';
 import { dropAllPhotos, dropPhoto, keepPhoto } from './photos';
 
@@ -37,6 +40,20 @@ const dinner: EventFields = {
   url: null,
   notes: '',
 };
+
+/** The same dinner as a calendar file would hand it over. */
+const invite: ImportedEvent = {
+  sourceId: 'uid-1',
+  title: 'Dinner',
+  startsAt: evening,
+  endsAt: evening + 2 * HOUR,
+  allDay: false,
+  locationText: '14 Alder Row',
+  host: '',
+  url: null,
+  description: '',
+};
+const file = { source: 'ics' } as const;
 
 const picked = 'file:///tmp/picked.jpg';
 const only = () => getEvents()[0];
@@ -100,6 +117,32 @@ describe('an event photo', () => {
     expect(getEvents()).toEqual([]);
   });
 
+  it('is deleted with an imported event, which then stays away', () => {
+    importEvents([invite], file);
+    saveEvent({ ...only(), photo: picked }, only().id);
+    const { id, photo } = only();
+    jest.clearAllMocks();
+
+    removeEvent(id);
+
+    expect(dropPhoto).toHaveBeenCalledWith(photo!.split('/').pop());
+    expect(getEvents()).toEqual([]);
+    expect(importEvents([invite], file)).toEqual({ added: 0, updated: 0, unchanged: 0, skipped: 1 });
+    expect(getEvents()).toEqual([]);
+  });
+
+  it('is left alone by an import that changes its event', () => {
+    importEvents([invite], file);
+    saveEvent({ ...only(), photo: picked }, only().id);
+    const { photo } = only();
+    jest.clearAllMocks();
+
+    importEvents([{ ...invite, title: 'Late dinner' }], file);
+
+    expect(only()).toMatchObject({ title: 'Late dinner', photo });
+    expect(dropPhoto).not.toHaveBeenCalled();
+  });
+
   it('goes when a sample event that was given one is replaced or removed', () => {
     insertSampleEvents();
     const sample = getEvents().find((event) => event.isSample)!;
@@ -130,5 +173,32 @@ describe('events from the store', () => {
     expect(getEvents().map((event) => event.title)).toEqual(['Dinner', 'Clash', 'Later']);
     expect(getEvents().map((event) => event.hasConflict)).toEqual([true, true, false]);
     expect(getEvents().every((event) => !event.isSample && event.cover.length === 2)).toBe(true);
+  });
+
+  it('show an import at once, and never as a sample', () => {
+    const result = importEvents([{ ...invite, sourceId: 'sample:1' }], file);
+    expect(result).toEqual({ added: 1, updated: 0, unchanged: 0, skipped: 0 });
+    expect(only()).toMatchObject({ title: 'Dinner', source: 'ics', isSample: false });
+
+    removeSampleEvents();
+    expect(getEvents()).toHaveLength(1);
+  });
+
+  it('show where an address is as soon as it is known', () => {
+    saveEvent({ ...dinner, locationText: '14 Alder Row' });
+    expect(only()).toMatchObject({ lat: null, lng: null, geocodeStatus: 'pending' });
+    // Nothing was written, so nothing is read again.
+    const before = getEvents();
+    expect(nextPendingAddress()).toBe('14 Alder Row');
+    expect(getEvents()).toBe(before);
+
+    setGeocode('14 Alder Row', { lat: 51.5, lng: -0.12 });
+    expect(only()).toMatchObject({ lat: 51.5, lng: -0.12, geocodeStatus: 'located' });
+
+    // A second event at that address is filled in without the address being offered again.
+    saveEvent({ ...dinner, title: 'Drinks', startsAt: evening + HOUR, locationText: '14 Alder Row' });
+    expect(getEvents().map((event) => event.geocodeStatus)).toEqual(['located', 'pending']);
+    expect(nextPendingAddress()).toBeNull();
+    expect(getEvents().map((event) => event.geocodeStatus)).toEqual(['located', 'located']);
   });
 });

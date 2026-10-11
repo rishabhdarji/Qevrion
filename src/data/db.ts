@@ -1,7 +1,15 @@
 import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 
 import { allDayToLocal, allDayToUtc } from '../lib/dates';
-import type { EventFields, QevrionEvent, Settings } from '../types';
+import { planImport, type ExistingEvent } from '../lib/importPlan';
+import type {
+  EventFields,
+  ImportedEvent,
+  ImportResult,
+  ImportScope,
+  QevrionEvent,
+  Settings,
+} from '../types';
 
 // The only file that talks to SQLite. Screens never import this for events; they go
 // through src/data/events.ts, which keeps what is read here in memory.
@@ -12,7 +20,9 @@ import type { EventFields, QevrionEvent, Settings } from '../types';
 // One entry per schema version, run in order. Never edit an entry that has shipped:
 // to change the schema, add a new one. Version 1 is SPEC section 7 (Event, Settings).
 // Lists are JSON text and yes/no values are 0 or 1. Version 2 adds the event's photo,
-// stored as a file name (src/data/photos.ts).
+// stored as a file name (src/data/photos.ts). Version 3 is for imports: `deletedAt`
+// marks an imported event the owner deleted, kept so that the next sync does not bring
+// it back, and an event's key becomes unique within the calendar or file it came from.
 export const MIGRATIONS = [
   `CREATE TABLE events (
     id TEXT PRIMARY KEY NOT NULL,
@@ -54,6 +64,8 @@ export const MIGRATIONS = [
   ) STRICT;
   INSERT INTO settings (id) VALUES (1);`,
   `ALTER TABLE events ADD COLUMN photo TEXT;`,
+  `ALTER TABLE events ADD COLUMN deletedAt INTEGER;
+  CREATE UNIQUE INDEX events_source ON events (source, sourceId) WHERE sourceId IS NOT NULL;`,
 ];
 
 let opened: SQLiteDatabase | undefined;
@@ -93,32 +105,45 @@ type EventRow = Omit<StoredEvent, 'allDay' | 'isPartiful' | 'keyDetails' | 'remo
   removedFromSource: number;
 };
 
-/** Every event, in no particular order. All-day dates come back as this phone's days. */
+/** A row's times as the app holds them: all-day dates become this phone's days. */
+function localTimes(row: { allDay: number; startsAt: number; endsAt: number }) {
+  const allDay = row.allDay === 1;
+  return {
+    allDay,
+    startsAt: allDay ? allDayToLocal(row.startsAt) : row.startsAt,
+    endsAt: allDay ? allDayToLocal(row.endsAt) : row.endsAt,
+  };
+}
+
+/** SPEC F2: a partiful.com link anywhere in an event makes it a Partiful event. */
+const partiful = (...texts: (string | null)[]) => (/partiful\.com/i.test(texts.join(' ')) ? 1 : 0);
+
+/**
+ * Every event, in no particular order. All-day dates come back as this phone's days.
+ * An imported event the owner deleted is still stored, and is left out.
+ */
 export function listEvents(): StoredEvent[] {
   return db()
     .getAllSync<EventRow>(
       `SELECT id, source, sourceId, title, startsAt, endsAt, allDay, locationText, lat, lng,
         geocodeStatus, url, host, description, isPartiful, notes, keyDetails, photo,
         removedFromSource
-      FROM events`,
+      FROM events WHERE deletedAt IS NULL`,
     )
-    .map((row) => {
-      const allDay = row.allDay === 1;
-      return {
-        ...row,
-        allDay,
-        startsAt: allDay ? allDayToLocal(row.startsAt) : row.startsAt,
-        endsAt: allDay ? allDayToLocal(row.endsAt) : row.endsAt,
-        isPartiful: row.isPartiful === 1,
-        keyDetails: JSON.parse(row.keyDetails) as string[],
-        removedFromSource: row.removedFromSource === 1,
-      };
-    });
+    .map((row) => ({
+      ...row,
+      ...localTimes(row),
+      isPartiful: row.isPartiful === 1,
+      keyDetails: JSON.parse(row.keyDetails) as string[],
+      removedFromSource: row.removedFromSource === 1,
+    }));
 }
 
 /**
  * Adds an event, or with `id` updates the fields the form edits and nothing else.
  * `fields.photo` is the photo's stored file name here (see src/data/events.ts).
+ * Where the place is goes with the address: change the address and it is looked up
+ * again, keep it and what was found stays.
  */
 export function saveEvent(fields: EventFields, id?: string): void {
   const { allDay } = fields;
@@ -136,6 +161,10 @@ export function saveEvent(fields: EventFields, id?: string): void {
       endsAt = excluded.endsAt,
       allDay = excluded.allDay,
       locationText = excluded.locationText,
+      lat = CASE WHEN excluded.locationText = events.locationText THEN events.lat END,
+      lng = CASE WHEN excluded.locationText = events.locationText THEN events.lng END,
+      geocodeStatus = CASE WHEN excluded.locationText = events.locationText
+        THEN events.geocodeStatus ELSE 'pending' END,
       url = excluded.url,
       host = excluded.host,
       notes = excluded.notes,
@@ -154,7 +183,7 @@ export function saveEvent(fields: EventFields, id?: string): void {
       $url: fields.url,
       $host: fields.host,
       $description: description,
-      $isPartiful: /partiful\.com/i.test(`${fields.url} ${description}`) ? 1 : 0,
+      $isPartiful: partiful(fields.url, description, fields.locationText),
       $notes: fields.notes,
       $keyDetails: JSON.stringify(fields.keyDetails ?? []),
       $photo: fields.photo ?? null,
@@ -163,12 +192,21 @@ export function saveEvent(fields: EventFields, id?: string): void {
   );
 }
 
+/**
+ * An event added by hand is gone for good. An imported one is kept out of sight,
+ * without its photo, so that the next sync does not bring it back.
+ */
 export function deleteEvent(id: string): void {
-  db().runSync('DELETE FROM events WHERE id = ?', [id]);
+  // Only one of these finds anything to do.
+  db().runSync(`DELETE FROM events WHERE id = ? AND source = 'manual'`, [id]);
+  db().runSync('UPDATE events SET deletedAt = ?, photo = NULL WHERE id = ?', [Date.now(), id]);
 }
 
 export function deleteSampleEvents(): void {
-  db().runSync(`DELETE FROM events WHERE sourceId LIKE '${SAMPLE_PREFIX}%'`);
+  // Only ones added by hand: a calendar file is free to use the same words in a key.
+  db().runSync(
+    `DELETE FROM events WHERE source = 'manual' AND sourceId LIKE '${SAMPLE_PREFIX}%'`,
+  );
 }
 
 /** Swaps whatever samples are stored for these, so pressing the button twice never doubles them. */
@@ -177,6 +215,150 @@ export function replaceSampleEvents(samples: EventFields[]): void {
     deleteSampleEvents();
     samples.forEach((sample) => saveEvent(sample));
   });
+}
+
+type ExistingRow = Omit<ExistingEvent, 'allDay' | 'removedFromSource' | 'deleted'> & {
+  allDay: number;
+  removedFromSource: number;
+  deleted: number;
+};
+
+/**
+ * Brings in what a calendar or a file holds, by the rules in src/lib/importPlan.ts:
+ * new events are added, changed ones updated, and ones a calendar no longer has are
+ * marked instead of deleted. Only what the calendar owns is written, so notes, photos
+ * and key details stay as they are. All of it is saved, or none of it.
+ */
+export function importEvents(
+  incoming: ImportedEvent[],
+  scope: ImportScope,
+  now = Date.now(),
+): ImportResult {
+  const existing = db()
+    .getAllSync<ExistingRow>(
+      `SELECT id, sourceId, title, startsAt, endsAt, allDay, locationText, host, url, description,
+        removedFromSource, deletedAt IS NOT NULL AS deleted
+      FROM events WHERE source = ? AND sourceId IS NOT NULL`,
+      [scope.source],
+    )
+    .map((row) => ({
+      ...row,
+      ...localTimes(row),
+      removedFromSource: row.removedFromSource === 1,
+      deleted: row.deleted === 1,
+    }));
+  const plan = planImport(existing, incoming, scope);
+
+  const owned = (event: ImportedEvent) => ({
+    $sourceId: event.sourceId,
+    $title: event.title,
+    $startsAt: event.allDay ? allDayToUtc(event.startsAt) : event.startsAt,
+    $endsAt: event.allDay ? allDayToUtc(event.endsAt) : event.endsAt,
+    $allDay: event.allDay ? 1 : 0,
+    $locationText: event.locationText,
+    $url: event.url,
+    $host: event.host,
+    $description: event.description,
+    $isPartiful: partiful(event.url, event.description, event.locationText),
+    $now: now,
+  });
+
+  // ponytail: each row prepares its statement afresh, fine for a few thousand events;
+  // prepare each statement once if a first import ever feels slow.
+  // ponytail: lastSyncedAt is only written when a sync adds or changes a row, and
+  // nothing reads it yet; stamp every row a sync saw once something needs to know.
+  db().withTransactionSync(() => {
+    for (const event of plan.inserts) {
+      db().runSync(
+        `INSERT INTO events (id, source, sourceId, title, startsAt, endsAt, allDay, timeZone,
+          locationText, url, host, description, isPartiful, createdAt, updatedAt, lastSyncedAt)
+        VALUES (lower(hex(randomblob(16))), $source, $sourceId, $title, $startsAt, $endsAt,
+          $allDay, $timeZone, $locationText, $url, $host, $description, $isPartiful, $now, $now,
+          $now)`,
+        {
+          ...owned(event),
+          $source: scope.source,
+          $timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+      );
+    }
+    for (const { id, event, relocate } of plan.updates) {
+      db().runSync(
+        `UPDATE events SET
+          sourceId = $sourceId,
+          title = $title,
+          startsAt = $startsAt,
+          endsAt = $endsAt,
+          allDay = $allDay,
+          locationText = $locationText,
+          url = $url,
+          host = $host,
+          description = $description,
+          isPartiful = $isPartiful,
+          removedFromSource = 0,
+          updatedAt = $now,
+          lastSyncedAt = $now
+        WHERE id = $id`,
+        { ...owned(event), $id: id },
+      );
+      if (relocate) {
+        db().runSync(
+          `UPDATE events SET lat = NULL, lng = NULL, geocodeStatus = 'pending' WHERE id = ?`,
+          [id],
+        );
+      }
+    }
+    for (const { id, sourceId } of plan.rekeys) {
+      db().runSync('UPDATE events SET sourceId = ? WHERE id = ?', [sourceId, id]);
+    }
+    for (const id of plan.removed) {
+      db().runSync('UPDATE events SET removedFromSource = 1, updatedAt = ? WHERE id = ?', [now, id]);
+    }
+  });
+  return plan.result;
+}
+
+// Where an event is. The address is looked up elsewhere; this is where the answer is kept.
+
+/**
+ * The next address to look up, or null when there is none. Before choosing, every
+ * waiting event whose exact address has been answered before is given that answer, so
+ * no address is ever asked for twice; `reused` is how many events that filled in.
+ */
+export function nextPendingAddress(now = Date.now()): { address: string | null; reused: number } {
+  const reused = db().runSync(
+    `UPDATE events SET lat = known.lat, lng = known.lng, geocodeStatus = known.geocodeStatus
+    FROM events AS known
+    WHERE events.geocodeStatus = 'pending' AND known.geocodeStatus != 'pending'
+      AND known.locationText = events.locationText`,
+  ).changes;
+  // Events still to come first, then whichever is nearest in time. Sample events are
+  // invented, so their addresses are never sent anywhere.
+  const next = db().getFirstSync<{ locationText: string }>(
+    `SELECT locationText FROM events
+    WHERE deletedAt IS NULL AND geocodeStatus = 'pending' AND trim(locationText) != ''
+      AND NOT (source = 'manual' AND ifnull(sourceId, '') LIKE '${SAMPLE_PREFIX}%')
+    ORDER BY endsAt <= $now, abs(startsAt - $now)
+    LIMIT 1`,
+    { $now: now },
+  );
+  return { address: next?.locationText ?? null, reused };
+}
+
+/** Records the answer for an address, on every event that is waiting for it. Null: not found. */
+export function setGeocode(address: string, found: { lat: number; lng: number } | null): void {
+  // A place off the map is no place: "located" must always mean there is somewhere to go.
+  const place = found && Math.abs(found.lat) <= 90 && Math.abs(found.lng) <= 180 ? found : null;
+  db().runSync(
+    `UPDATE events SET lat = $lat, lng = $lng, geocodeStatus = $status
+    WHERE geocodeStatus = 'pending' AND locationText = $address`,
+    {
+      $lat: place?.lat ?? null,
+      $lng: place?.lng ?? null,
+      $status: place ? 'located' : 'notFound',
+      $address: address,
+    },
+  );
 }
 
 /** Every event and every setting. Settings go back to their defaults. */

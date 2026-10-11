@@ -1,3 +1,4 @@
+import { planImport } from '../lib/importPlan';
 import type { Settings } from '../types';
 import type * as Phone from './db';
 
@@ -36,6 +37,8 @@ const PREVIEW_PHOTO =
 
 const HOUR = 3_600_000;
 
+const partiful = (...texts: (string | null)[]) => /partiful\.com/i.test(texts.join(' '));
+
 let nextId = 1;
 let settings: Settings = { ...DEFAULTS };
 let events: Phone.StoredEvent[] = [];
@@ -64,7 +67,7 @@ export const saveEvent: typeof Phone.saveEvent = (fields, id) => {
   const description = old?.description ?? fields.description ?? '';
   const saved: Phone.StoredEvent = {
     id: id ?? `preview-${nextId++}`,
-    source: 'manual',
+    source: old?.source ?? 'manual',
     sourceId: old?.sourceId ?? fields.sourceId ?? null,
     title: fields.title,
     startsAt: fields.startsAt,
@@ -77,7 +80,7 @@ export const saveEvent: typeof Phone.saveEvent = (fields, id) => {
     photo: fields.photo ?? null,
     description,
     keyDetails: old?.keyDetails ?? fields.keyDetails ?? [],
-    isPartiful: /partiful\.com/i.test(`${fields.url} ${description}`),
+    isPartiful: partiful(fields.url, description, fields.locationText),
     // Nothing is looked up on a map in the preview.
     lat: null,
     lng: null,
@@ -87,18 +90,67 @@ export const saveEvent: typeof Phone.saveEvent = (fields, id) => {
   events = [...events.filter((event) => event.id !== saved.id), saved];
 };
 
+// Really deletes, whatever the event came from. On the phone a deleted import is kept
+// out of sight so that the next import does not bring it back; here it would come back.
 export const deleteEvent: typeof Phone.deleteEvent = (id) => {
   events = events.filter((event) => event.id !== id);
 };
 
 export const deleteSampleEvents: typeof Phone.deleteSampleEvents = () => {
-  events = events.filter((event) => !event.sourceId?.startsWith(SAMPLE_PREFIX));
+  events = events.filter(
+    (event) => !(event.source === 'manual' && event.sourceId?.startsWith(SAMPLE_PREFIX)),
+  );
 };
 
 export const replaceSampleEvents: typeof Phone.replaceSampleEvents = (samples) => {
   deleteSampleEvents();
   samples.forEach((sample) => saveEvent(sample));
 };
+
+/** The phone's rules (src/lib/importPlan.ts), applied to the list in memory. */
+export const importEvents: typeof Phone.importEvents = (incoming, scope) => {
+  const plan = planImport(
+    events.flatMap((event) =>
+      event.source === scope.source && event.sourceId !== null
+        ? [{ ...event, sourceId: event.sourceId, deleted: false }]
+        : [],
+    ),
+    incoming,
+    scope,
+  );
+  const row = (id: string) => events.find((event) => event.id === id)!;
+  plan.updates.forEach(({ id, event }) =>
+    Object.assign(row(id), event, {
+      isPartiful: partiful(event.url, event.description, event.locationText),
+      removedFromSource: false,
+    }),
+  );
+  plan.rekeys.forEach(({ id, sourceId }) => Object.assign(row(id), { sourceId }));
+  plan.removed.forEach((id) => Object.assign(row(id), { removedFromSource: true }));
+  events = [
+    ...events,
+    ...plan.inserts.map(
+      (event): Phone.StoredEvent => ({
+        ...event,
+        id: `preview-${nextId++}`,
+        source: scope.source,
+        isPartiful: partiful(event.url, event.description, event.locationText),
+        notes: '',
+        keyDetails: [],
+        photo: null,
+        lat: null,
+        lng: null,
+        geocodeStatus: 'pending',
+        removedFromSource: false,
+      }),
+    ),
+  ];
+  return plan.result;
+};
+
+// Nothing is looked up on a map in the preview, so there is never an address waiting.
+export const nextPendingAddress: typeof Phone.nextPendingAddress = () => ({ address: null, reused: 0 });
+export const setGeocode: typeof Phone.setGeocode = () => {};
 
 export const deleteAllData: typeof Phone.deleteAllData = () => {
   events = [];
