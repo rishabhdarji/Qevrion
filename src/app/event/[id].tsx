@@ -18,7 +18,7 @@ import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
 import { useEvent } from '@/data/events';
-import { dayStart, formatDay, formatTime } from '@/lib/dates';
+import { formatEventSpan } from '@/lib/dates';
 import { colors, radius, size, space } from '@/theme';
 
 const CHECKLIST = ['Reply to the host', 'Sort out a lift home', 'Pick up something to bring'];
@@ -45,10 +45,9 @@ export default function EventDetail() {
   }
 
   const navigate = () => router.push({ pathname: '/navigate/[id]', params: { id: event.id } });
-  // Only when there is a Partiful link to open; a mention in the description is not one.
-  const partifulUrl = event.url?.includes('partiful.com') ? event.url : null;
-  const lastDay = event.endsAt - 1;
-  const severalDays = event.allDay && dayStart(lastDay) > event.startsAt;
+  const edit = () => router.push({ pathname: '/event/edit', params: { id: event.id } });
+  const { url } = event;
+  const when = formatEventSpan(event);
 
   return (
     <Screen
@@ -62,11 +61,7 @@ export default function EventDetail() {
           <View style={styles.floating}>
             <IconButton icon="back" label="Back" onPress={() => router.back()} />
           </View>
-          <Pill
-            label="Edit"
-            icon="edit"
-            onPress={() => router.push({ pathname: '/event/edit', params: { id: event.id } })}
-          />
+          <Pill label="Edit" icon="edit" onPress={edit} />
         </View>
         <View style={styles.coverText}>
           {event.isSample ? <SampleBadge /> : null}
@@ -87,19 +82,7 @@ export default function EventDetail() {
         ) : null}
 
         <Card padded={false}>
-          <ListRow
-            icon="calendar"
-            title={
-              severalDays
-                ? `${formatDay(event.startsAt)} to ${formatDay(lastDay)}`
-                : formatDay(event.startsAt)
-            }
-            subtitle={
-              event.allDay
-                ? 'All day'
-                : `${formatTime(event.startsAt)} to ${formatTime(event.endsAt)}`
-            }
-          />
+          <ListRow icon="calendar" title={when.days} subtitle={when.times} />
           {event.locationText ? (
             <ListRow
               icon="pin"
@@ -108,7 +91,16 @@ export default function EventDetail() {
               divider
               onPress={navigate}
             />
-          ) : null}
+          ) : (
+            // Says why there is no Navigate button, and is the way to get one.
+            <ListRow
+              icon="pin"
+              title="Add a place"
+              subtitle="Needed for the walking route"
+              divider
+              onPress={edit}
+            />
+          )}
           {event.host ? <ListRow icon="person" title={event.host} subtitle="Host" divider /> : null}
         </Card>
 
@@ -130,12 +122,12 @@ export default function EventDetail() {
           </>
         ) : null}
 
-        {partifulUrl ? (
+        {url ? (
           <View style={styles.partiful}>
             <SecondaryButton
-              label="Open in Partiful"
+              label={url.includes('partiful.com') ? 'Open in Partiful' : 'Open link'}
               accessibilityHint="Opens the event's page"
-              onPress={() => Linking.openURL(partifulUrl).catch(() => {})}
+              onPress={() => Linking.openURL(url).catch(() => {})}
             />
           </View>
         ) : null}
@@ -155,7 +147,7 @@ export default function EventDetail() {
             mistaken for your own list. Round 7 stores a real one per event. */}
         {event.isSample ? (
           <>
-            <SectionLabel style={styles.label}>Prep checklist</SectionLabel>
+            <SectionLabel style={styles.label}>Checklist preview</SectionLabel>
             <Card padded={false}>
               {CHECKLIST.map((item, index) => (
                 <ListRow

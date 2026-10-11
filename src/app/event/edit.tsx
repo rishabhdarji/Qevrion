@@ -2,6 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   Alert,
   Platform,
   StyleSheet,
@@ -26,6 +27,7 @@ import {
   moveStart,
   newDraft,
   validateDraft,
+  type DraftErrors,
   type EventDraft,
 } from '@/lib/eventDraft';
 import { colors, radius, size, space, type } from '@/theme';
@@ -47,8 +49,11 @@ function Field({ label, error, multiline, ...input }: FieldProps) {
       <TextInput
         {...input}
         multiline={multiline}
+        // "done" is the key that puts the keyboard away and uncovers the save button.
+        returnKeyType={multiline ? undefined : 'done'}
         placeholderTextColor={colors.textTertiary}
         accessibilityLabel={label}
+        accessibilityHint={error}
         keyboardAppearance="dark"
         selectionColor={colors.accent}
         maxFontSizeMultiplier={1.4}
@@ -107,12 +112,15 @@ export default function EditEvent() {
   const done = useRef(false);
 
   const errors = checked ? validateDraft(draft) : {};
+  const firstOf = (found: DraftErrors) => found.title ?? found.start ?? found.end;
   const set = (patch: Partial<EventDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
   const save = () => {
     if (done.current) return;
-    if (Object.keys(validateDraft(draft)).length > 0) {
+    const problem = firstOf(validateDraft(draft));
+    if (problem) {
       setChecked(true);
+      AccessibilityInfo.announceForAccessibility(problem);
       return;
     }
     try {
@@ -143,7 +151,18 @@ export default function EditEvent() {
     <Screen
       glow
       sheet
-      footer={<PrimaryButton label={id ? 'Save changes' : 'Add event'} onPress={save} />}
+      footer={
+        <>
+          {/* The form is taller than the screen, so the problem is repeated here, where
+              the button that found it is. */}
+          {firstOf(errors) ? (
+            <Txt variant="caption" color="destructive" style={styles.footerProblem}>
+              {firstOf(errors)}
+            </Txt>
+          ) : null}
+          <PrimaryButton label={id ? 'Save changes' : 'Add event'} onPress={save} />
+        </>
+      }
     >
       <ScreenHeader leading="close" title={id ? 'Edit event' : 'New event'} />
       <Field
@@ -245,6 +264,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: space[5],
+  },
+  footerProblem: {
+    textAlign: 'center',
   },
   picker: {
     alignSelf: 'flex-start',

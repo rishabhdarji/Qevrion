@@ -24,6 +24,9 @@ const REPO_URL = 'https://github.com/rishabhdarji/Qevrion';
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
+// A row that does something on the spot takes no arrow; an arrow promises another screen.
+const NO_CHEVRON = <View />;
+
 function Value({ children }: { children: string }) {
   return (
     <Txt variant="bodySmall" color="textSecondary">
@@ -76,10 +79,11 @@ export default function Settings() {
           title="Delete all data"
           titleColor="destructive"
           subtitle={`${count(events.length, 'event')} on this phone`}
+          right={NO_CHEVRON}
           onPress={() =>
             confirmDestructive(
               'Delete all data?',
-              'Every event and setting is removed from this phone. This cannot be undone.',
+              'Every event and setting is removed from this phone, and Qevrion starts again from the welcome screens. This cannot be undone.',
               'Delete everything',
               deleteAllData,
             )
@@ -102,6 +106,8 @@ export default function Settings() {
       <Card padded={false}>
         <ListRow
           title={`Insert ${SAMPLE_COUNT} sample events`}
+          titleColor="accent"
+          right={NO_CHEVRON}
           subtitle={
             samples > 0
               ? `${count(samples, 'sample')} in the app. Tap for a fresh set.`
@@ -115,6 +121,8 @@ export default function Settings() {
         {samples > 0 ? (
           <ListRow
             title="Remove sample events"
+            titleColor="accent"
+            right={NO_CHEVRON}
             subtitle="Your own events stay"
             divider
             onPress={() => {

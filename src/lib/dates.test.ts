@@ -1,4 +1,13 @@
-import { allDayToLocal, allDayToUtc, dayStart, formatEventTime, startOfDay } from './dates';
+import {
+  allDayToLocal,
+  allDayToUtc,
+  dayStart,
+  formatDay,
+  formatEventSpan,
+  formatEventTime,
+  formatTime,
+  startOfDay,
+} from './dates';
 
 // These hold in every time zone. `npm run test:zones` runs them in six, including ones
 // where the clocks change at midnight or by half an hour.
@@ -73,6 +82,42 @@ describe('all-day dates', () => {
     expect(new Date(allDayToLocal(Date.UTC(2026, 10, 1))).getMonth()).toBe(10);
     // Ahead of UTC, the last evening of a month is already the next month in UTC.
     expect(new Date(allDayToUtc(new Date(2026, 9, 31, 23, 30).getTime())).getUTCMonth()).toBe(9);
+  });
+});
+
+describe('formatEventSpan', () => {
+  const evening = new Date(2026, 9, 17, 19).getTime();
+  const span = (startsAt: number, endsAt: number, allDay = false) =>
+    formatEventSpan({ startsAt, endsAt, allDay });
+
+  it('gives the day and both times for an ordinary event', () => {
+    expect(span(evening, evening + 3 * HOUR)).toEqual({
+      days: formatDay(evening),
+      times: `${formatTime(evening)} to ${formatTime(evening + 3 * HOUR)}`,
+    });
+  });
+
+  it('leaves the day off an end that is past midnight but under a day away', () => {
+    const late = evening + 7 * HOUR;
+    expect(span(evening, late).times).toBe(`${formatTime(evening)} to ${formatTime(late)}`);
+  });
+
+  it('names the day an event ends on once it runs a day or more', () => {
+    const later = evening + 50 * HOUR;
+    expect(span(evening, later).times).toBe(
+      `${formatTime(evening)} to ${formatDay(later)} · ${formatTime(later)}`,
+    );
+  });
+
+  it('says All day, with the last day rather than the day after it', () => {
+    const first = startOfDay(2026, 9, 17);
+    expect(span(first, startOfDay(2026, 9, 18), true)).toEqual({
+      days: formatDay(first),
+      times: 'All day',
+    });
+    expect(span(first, startOfDay(2026, 9, 20), true).days).toBe(
+      `${formatDay(first)} to ${formatDay(startOfDay(2026, 9, 19))}`,
+    );
   });
 });
 

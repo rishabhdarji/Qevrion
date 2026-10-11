@@ -37,6 +37,30 @@ export function formatEventWhen(event: Timed): string {
   return `${formatDay(event.startsAt)} · ${formatEventTime(event)}`;
 }
 
+/**
+ * The two lines that say when an event is: the day or days, then the times.
+ * "Sat, Oct 17" over "7:00 PM to 10:00 PM"; "Sat, Oct 17 to Mon, Oct 19" over "All day".
+ */
+export function formatEventSpan(event: Timed & { endsAt: number }): { days: string; times: string } {
+  const { startsAt, endsAt } = event;
+  if (event.allDay) {
+    // An all-day event ends at the start of the day after its last day.
+    const lastDay = endsAt - 1;
+    const several = dayStart(lastDay) > startsAt;
+    return {
+      days: several ? `${formatDay(startsAt)} to ${formatDay(lastDay)}` : formatDay(startsAt),
+      times: 'All day',
+    };
+  }
+  // Under a day long, the two clock times say it all, even past midnight. Longer than
+  // that and "7:00 PM to 9:00 PM" would hide how long it runs.
+  const long = endsAt - startsAt >= 24 * 3_600_000;
+  return {
+    days: formatDay(startsAt),
+    times: `${formatTime(startsAt)} to ${long ? `${formatDay(endsAt)} · ` : ''}${formatTime(endsAt)}`,
+  };
+}
+
 /** The first moment of a calendar day on this phone. `day` may run past the month's end. */
 export function startOfDay(year: number, month: number, day: number): number {
   const date = new Date(year, month, day);

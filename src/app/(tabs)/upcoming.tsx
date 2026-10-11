@@ -72,7 +72,9 @@ function HomeHeader({ total, conflicts, query, onQuery, filter, onFilter }: Head
           onChangeText={onQuery}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={`Search ${total} ${total === 1 ? 'event' : 'events'}`}
+          placeholder={
+            total === 0 ? 'Search events' : `Search ${total} ${total === 1 ? 'event' : 'events'}`
+          }
           placeholderTextColor={colors.textTertiary}
           accessibilityLabel="Search events by title, venue or host"
           autoCorrect={false}
