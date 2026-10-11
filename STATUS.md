@@ -1,6 +1,6 @@
 # Qevrion status
 
-Last updated: Round 2 is built and waiting for the owner's check on the iPhone (11 Oct 2026). Round 1 was confirmed on the iPhone on 10 Oct 2026. Version 0.0.1.
+Last updated: Round 2 complete, confirmed on the iPhone in Expo Go (11 Oct 2026). Version 0.0.1.
 
 ## What works
 
@@ -37,7 +37,8 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 - **Events live inside Expo Go for now.** Deleting Expo Go, or signing Expo Go in to a different Expo account, starts the app with an empty database. Whether data survives the move to SDK 58 is not known. Treat what is typed in as test data until the Round 10 standalone build.
 - **Typed routes.** While the dev server is running it rewrites `.expo/types/router.d.ts` in a way that rejects template strings such as `` `/event/${id}` ``. Navigate to dynamic screens with the object form, `{ pathname: '/event/[id]', params: { id } }`, which always type-checks.
 - **The desktop web preview cannot run the app since Round 2.** Expo's web version of SQLite is an alpha and fell short in three ways (expo-sqlite 57.0.4, checked 11 Oct 2026): the dev server does not send the page the two cross-origin headers it needs; a synchronous call made before its worker has started times out; and any synchronous result longer than 255 bytes is cut short (`web/WorkerChannel.ts` writes the length into one byte), so reading more than about one event fails. The first two were worked around during Round 2 to check add, edit and delete against the real database in a browser; the third has no workaround short of patching the package, so the workarounds were removed again. Open question for the owner: add a preview-only stand-in for `src/data/db.ts` (a `db.web.ts` that keeps events in memory, never bundled for the iPhone) so screens can be checked on the PC before each phone test.
-- **Not yet seen on a phone (Round 2):** the compact date picker's size and alignment, especially at large text sizes; scrolling with 120 events; the app reloading itself when the phone's time zone changes; the guard for places where clocks change at midnight, which only an iPhone set to such a zone can exercise.
+- **Round 2 works on the owner's iPhone (11 Oct 2026).** Not reported on specifically, so still unknown: the date picker at the largest text size; the app reloading itself when the phone's time zone changes; the guard for places where clocks change at midnight, which only an iPhone set to such a zone can exercise.
+- **Asked for by the owner after Round 2 (11 Oct 2026), not built yet:** a photo or banner for each event, and address suggestions while typing in "Where".
 
 ## Decisions
 

@@ -131,4 +131,9 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 99. **Design review.** The UI/UX designer went through screenshots of the new screens and the code behind them. Eight small things were fixed. The two that mattered most: pressing Save from the bottom of the form looked dead, because the message was scrolled off the top (it is now repeated beside the button); and a link you typed only showed on the event if it was a Partiful link (any link now gets a button). Also: the Settings rows that do something on the spot lost their arrows, which had promised another screen; "Delete all data" now says the welcome screens come back; an event with no address shows an "Add a place" row instead of silently having no Navigate button; an event lasting a day or more names the day it ends; the keyboard's return key says "done"; the search box no longer says "Search 0 events". Judged right and left alone: the order of the fields, "Happening now" under the big card, and the title field being ready to type in on a new event.
 100. **Checks.** Type-check, lint, 68 tests in each of six time zones, Expo's doctor and an iPhone bundle all pass. Not merged: it stays on its own branch until you have tried it on the phone.
 
-**Next:** your check of Round 2 on the phone, then Round 3 (import from Calendar and `.ics`). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.
+## Round 2 confirmed
+
+101. **You tested Round 2 on the iPhone.** It works. Merged into `main` and pushed.
+102. **Two things you asked for.** A photo or banner for each event, and address suggestions while typing where an event is, the way a maps app offers them. Neither is built yet; both get a plan first.
+
+**Next:** a plan for the photo and the address suggestions, and Round 3 (import from Calendar and `.ics`). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.
