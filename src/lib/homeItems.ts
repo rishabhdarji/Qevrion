@@ -1,5 +1,5 @@
 import type { QevrionEvent } from '../types';
-import { formatMonth, isSameDay } from './dates';
+import { dayStart, formatMonth } from './dates';
 
 // Turns a set of events into the flat list Home and Archive render: labels, the hero
 // and rows, in order. Pure, so it is easy to test and cheap to re-run.
@@ -17,7 +17,9 @@ const WEEK = 7 * 24 * 60 * 60 * 1000;
 function matchesFilter(event: QevrionEvent, filter: Filter, now: number): boolean {
   switch (filter) {
     case 'Today':
-      return isSameDay(event.startsAt, now);
+      // Anything still to come that starts before tomorrow, so an event that is
+      // already running counts.
+      return event.startsAt < dayStart(now, 1);
     case 'This week':
       return event.startsAt - now < WEEK;
     case 'Has conflicts':
@@ -65,10 +67,28 @@ function grouped(
   return items;
 }
 
+/** The next event that has not started yet. `events` must be sorted by start. */
+export function selectNextEvent(events: QevrionEvent[], now: number): QevrionEvent | undefined {
+  return events.find((event) => event.startsAt > now);
+}
+
+/** The next moment after `now` at which an event starts or ends. Infinity when none does. */
+export function nextBoundary(
+  events: readonly { startsAt: number; endsAt: number }[],
+  now: number,
+): number {
+  let next = Infinity;
+  for (const { startsAt, endsAt } of events) {
+    if (startsAt > now && startsAt < next) next = startsAt;
+    if (endsAt > now && endsAt < next) next = endsAt;
+  }
+  return next;
+}
+
 /**
- * Home: the next event as the hero, then "This week", then one group per month.
- * With a search or filter active it is a single list of matches instead.
- * An empty result means there is nothing to show.
+ * Home: the next event that has not started as the hero, then anything happening now,
+ * then "This week", then one group per month. With a search or filter active it is a
+ * single list of matches instead. An empty result means there is nothing to show.
  */
 export function buildHomeItems(
   events: QevrionEvent[],
@@ -89,16 +109,23 @@ export function buildHomeItems(
     return [{ kind: 'label', key: 'label-results', text }, ...rows(matches)];
   }
 
-  const [next, ...later] = upcoming;
-  if (!next) return [];
+  // The hero moves on the moment an event starts. The one that started stays a tap
+  // away under "Happening now" until it ends.
+  const next = selectNextEvent(upcoming, now);
+  const running = (event: QevrionEvent) => event.startsAt <= now;
   const thisWeek = (event: QevrionEvent) => event.startsAt - now < WEEK;
   return [
-    { kind: 'label', key: 'label-next', text: 'Next up' },
-    { kind: 'hero', key: `hero-${next.id}`, event: next },
+    ...(next
+      ? ([
+          { kind: 'label', key: 'label-next', text: 'Next up' },
+          { kind: 'hero', key: `hero-${next.id}`, event: next },
+        ] satisfies ListItem[])
+      : []),
     ...grouped(
-      later,
-      (event) => (thisWeek(event) ? -1 : monthKey(event.startsAt)),
-      (event) => (thisWeek(event) ? 'This week' : formatMonth(event.startsAt)),
+      upcoming.filter((event) => event !== next),
+      (event) => (running(event) ? -2 : thisWeek(event) ? -1 : monthKey(event.startsAt)),
+      (event) =>
+        running(event) ? 'Happening now' : thisWeek(event) ? 'This week' : formatMonth(event.startsAt),
     ),
   ];
 }

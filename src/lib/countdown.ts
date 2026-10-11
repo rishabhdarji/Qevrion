@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
+
+import { nextBoundary } from './homeItems';
 
 /** "3d 8h left", "5h 12m left", "12m 30s left", "42s left", then "Now". */
 export function formatCountdown(msLeft: number): string {
@@ -21,5 +24,33 @@ export function useNow(intervalMs = 1000): number {
     const id = setInterval(() => setNow(Date.now()), intervalMs);
     return () => clearInterval(id);
   }, [intervalMs]);
+  return now;
+}
+
+/**
+ * The current time for a list of events. It re-renders the caller the moment an event
+ * starts or ends, when the app comes back to the front, and otherwise once a minute,
+ * so a list moves on exactly on time without redrawing every second.
+ */
+export function useEventClock(events: readonly { startsAt: number; endsAt: number }[]): number {
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    let id: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      clearTimeout(id);
+      const time = Date.now();
+      setNow(time);
+      // A timer that fires a moment early just finds the same boundary and re-arms.
+      id = setTimeout(tick, Math.min(60_000, nextBoundary(events, time) - time));
+    };
+    id = setTimeout(tick, 0);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') tick();
+    });
+    return () => {
+      clearTimeout(id);
+      subscription.remove();
+    };
+  }, [events]);
   return now;
 }
