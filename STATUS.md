@@ -91,3 +91,9 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 
 - Node 24.20.0, npm 11.19.1, Git 2.56.0, GitHub CLI 2.102.0.
 - GitHub CLI is signed in over HTTPS (confirmed 10 Oct 2026) with the `repo` and `workflow` scopes, which is what Round 8 needs to create the repo and push the CI workflow.
+
+## Round 3 in progress (import)
+
+- **Where.** Built in a second checkout of the repo (a git worktree) in a folder beside the project, on branch `round-3-import`, because Round 2 was still being worked on in the main folder. It stacks on `round-2-database` and merges after it.
+- **Calendar package.** In SDK 57 the main `expo-calendar` entry point throws inside Expo Go. Import from `expo-calendar/legacy`, which Expo's SDK 57 docs list for Expo Go (checked 11 Oct 2026). No plugin entry in `app.json` is needed until the standalone build.
+- **Temporary.** `src/app/debug-calendar.tsx` and its Settings row (Developer, "Calendar debug") show raw calendar fields. Remove both at the end of Round 3. Not yet tried on a phone.
