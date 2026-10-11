@@ -15,7 +15,7 @@ and a camera view that walks you to the door.
 </div>
 
 > [!NOTE]
-> **Early days.** Qevrion is being built in the open, one round at a time. Rounds 0 and 1 are done and nine more follow. Today the app has its look and all ten screens, running on invented sample events: nothing is saved or imported yet, and the map and AR Walk are mock-ups. Everything under "What it will do" is the plan, not what is in the code yet. [STATUS.md](STATUS.md) always says what actually works.
+> **Early days.** Qevrion is being built in the open, one round at a time. Rounds 0 to 2 are done and eight more follow. Today you can add, edit and delete events by hand; they are stored on the phone, and the countdown to the next one, search, filters and the archive all work on them. Nothing is imported yet, there are no reminders, and the map and AR Walk are mock-ups. Everything under "What it will do" is the plan, not what is in the code yet. [STATUS.md](STATUS.md) always says what actually works.
 
 ## Why
 
@@ -45,8 +45,8 @@ Invites pile up. They live in different apps, the details are buried in long des
 |:---:|---|---|
 | 0 | Preflight and hello world | **Done** |
 | 1 | Design system and app shell | **Done** |
-| 2 | Database and manual events | Next |
-| 3 | Import from Calendar and `.ics` | Planned |
+| 2 | Database and manual events | **Done** |
+| 3 | Import from Calendar and `.ics` | Next |
 | 4 | Map and walking route | Planned |
 | 5 | AR Walk | Planned |
 | 6 | Reminders | Planned |
@@ -86,7 +86,7 @@ Expo Go supports one SDK version at a time. This project is on SDK 57, which is 
 | **In the code today** | Expo SDK 57, React Native 0.86, TypeScript in strict mode, Expo Router |
 | **Planned, per the spec** | SQLite for storage, local notifications, the iOS calendar, Apple Maps, the camera, GPS and compass |
 | **Free services, planned** | openrouteservice for walking routes (bring your own free key), Open-Meteo for weather |
-| **Checks** | `npm run typecheck` and `npm run lint`, run by GitHub Actions on every push |
+| **Checks** | `npm run typecheck`, `npm run lint` and `npm run test:zones` (the tests, in six time zones), run by GitHub Actions on every push |
 
 ## Follow the build
 

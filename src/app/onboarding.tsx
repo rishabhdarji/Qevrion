@@ -8,6 +8,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { SecondaryButton } from '@/components/SecondaryButton';
 import { StepBars } from '@/components/StepBars';
 import { Txt } from '@/components/Txt';
+import { updateSettings } from '@/data/db';
 import { colors, covers, radius, size, space } from '@/theme';
 
 const PAGES = [
@@ -111,7 +112,10 @@ export default function Onboarding() {
 
   // ponytail: nothing is asked for or imported here yet. The real calendar import is
   // Round 3 and the notification permission is Round 6; until then both buttons move on.
-  const finish = () => router.replace('/upcoming');
+  const finish = () => {
+    updateSettings({ onboardingDone: true });
+    router.replace('/upcoming');
+  };
   const goTo = (index: number) => {
     if (index >= PAGES.length) return finish();
     // The scroll position is the one source of truth for the page: `onScroll` below

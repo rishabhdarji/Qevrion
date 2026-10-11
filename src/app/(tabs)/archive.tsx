@@ -7,7 +7,7 @@ import { Screen, useScreenPadding } from '@/components/Screen';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
 import { useEvents } from '@/data/events';
-import { useNow } from '@/lib/countdown';
+import { useEventClock } from '@/lib/countdown';
 import { buildArchiveItems, type ListItem } from '@/lib/homeItems';
 import { colors, size, space } from '@/theme';
 import type { QevrionEvent } from '@/types';
@@ -17,7 +17,8 @@ export default function Archive() {
   const router = useRouter();
   const events = useEvents();
   const padding = useScreenPadding({ bottomSpace: size.tabBar + space[3] });
-  const now = useNow(60_000);
+  // An event moves in here the moment it ends.
+  const now = useEventClock(events);
 
   const items = buildArchiveItems(events, now);
   const total = items.filter((item) => item.kind === 'row').length;

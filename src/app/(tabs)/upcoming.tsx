@@ -12,7 +12,7 @@ import { Screen, useScreenPadding } from '@/components/Screen';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
 import { useEvents } from '@/data/events';
-import { useNow } from '@/lib/countdown';
+import { useEventClock } from '@/lib/countdown';
 import { buildHomeItems, FILTERS, type Filter, type ListItem } from '@/lib/homeItems';
 import { colors, radius, size, space, type } from '@/theme';
 import type { QevrionEvent } from '@/types';
@@ -30,13 +30,15 @@ const EMPTY: Record<Filter, { title: string; body: string }> = {
 
 type HeaderProps = {
   total: number;
+  /** Whether any upcoming events overlap, which puts a red dot on that chip. */
+  conflicts: boolean;
   query: string;
   onQuery: (query: string) => void;
   filter: Filter;
   onFilter: (filter: Filter) => void;
 };
 
-function HomeHeader({ total, query, onQuery, filter, onFilter }: HeaderProps) {
+function HomeHeader({ total, conflicts, query, onQuery, filter, onFilter }: HeaderProps) {
   const router = useRouter();
   const [focused, setFocused] = useState(false);
 
@@ -70,7 +72,9 @@ function HomeHeader({ total, query, onQuery, filter, onFilter }: HeaderProps) {
           onChangeText={onQuery}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder={`Search ${total} ${total === 1 ? 'event' : 'events'}`}
+          placeholder={
+            total === 0 ? 'Search events' : `Search ${total} ${total === 1 ? 'event' : 'events'}`
+          }
           placeholderTextColor={colors.textTertiary}
           accessibilityLabel="Search events by title, venue or host"
           autoCorrect={false}
@@ -95,7 +99,9 @@ function HomeHeader({ total, query, onQuery, filter, onFilter }: HeaderProps) {
             key={name}
             label={name}
             selected={filter === name}
-            dot={name === 'Has conflicts' && filter !== name ? 'destructive' : undefined}
+            dot={
+              name === 'Has conflicts' && conflicts && filter !== name ? 'destructive' : undefined
+            }
             onPress={() => onFilter(name)}
           />
         ))}
@@ -111,11 +117,12 @@ export default function Upcoming() {
   const padding = useScreenPadding({ bottomSpace: size.tabBar + space[3] });
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('All');
-  // A minute's tick moves the hero on to the next event when one ends.
-  const now = useNow(60_000);
+  // Moves the hero on the moment an event starts, and a finished one off to Archive.
+  const now = useEventClock(events);
 
   const items = buildHomeItems(events, now, query, filter);
-  const total = events.filter((event) => event.endsAt > now).length;
+  const upcoming = events.filter((event) => event.endsAt > now);
+  const total = upcoming.length;
   const browsing = filter === 'All' && query.trim() === '';
 
   const open = (event: QevrionEvent) =>
@@ -152,6 +159,7 @@ export default function Upcoming() {
         ListHeaderComponent={
           <HomeHeader
             total={total}
+            conflicts={upcoming.some((event) => event.hasConflict)}
             query={query}
             onQuery={setQuery}
             filter={filter}
@@ -162,9 +170,9 @@ export default function Upcoming() {
           browsing ? (
             <EmptyState
               title="Your calendar is clear"
-              body="Import your events or add one by hand, and the next one shows up here."
-              actionLabel="Import events"
-              onAction={() => router.push('/import')}
+              body="Add an event and it shows up here, with a countdown to the next one."
+              actionLabel="Add an event"
+              onAction={() => router.push('/event/edit')}
             />
           ) : (
             <EmptyState
