@@ -2,8 +2,6 @@
 
 Last updated: Round 1 complete, confirmed on the iPhone in Expo Go (10 Oct 2026). Version 0.0.1.
 
-**Waiting on the owner:** the branch `round-1-maps-and-reorder` (the "Open in Google Maps" button and the new round order) is not in `main` yet. Merge it into `main` and push once the owner confirms the Google Maps button on the phone, and before starting Round 2. Then delete this note.
-
 ## What works
 
 - Expo SDK 57 project with TypeScript (strict) and Expo Router. Round 0 was confirmed on the iPhone in Expo Go on 10 Oct 2026.
@@ -24,7 +22,7 @@ Round 1 is look and navigation only. These are placeholders, each marked in the 
 - **Import shows sample calendars and a sample result** (Round 3).
 - **Navigate's map is a drawing**, the same picture, distance and time for every event (Round 4). A caption on the screen says so.
 - **AR Walk has no camera, GPS or compass**; the arrow does not move (Round 5). The button that opens it reads "Preview AR Walk" until then.
-- **"Open in Apple Maps" and "Open in Google Maps" work**: each opens walking directions to the event's address in that app (Google Maps falls back to its website if the app is not installed). Sample venues are invented, so neither will find them; they become useful with real events from Round 2. Apple Maps was confirmed on the iPhone on 10 Oct 2026; Google Maps is waiting for the owner's test.
+- **"Open in Apple Maps" and "Open in Google Maps" work**: each opens walking directions to the event's address in that app (Google Maps falls back to its website if the app is not installed). Sample venues are invented, so neither will find them; they become useful with real events from Round 2. Apple Maps was confirmed on the iPhone on 10 Oct 2026 and Google Maps on 11 Oct 2026.
 - **"Open in Partiful" and "Delete all data" do nothing yet.** "Source code" in Settings does open the GitHub repo.
 - Key details, conflicts, weather and reminders are sample values or absent (Rounds 6 and 7).
 

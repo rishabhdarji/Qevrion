@@ -107,4 +107,6 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 79. **Checked in a browser.** The button opens walking directions in Google Maps. One thing to expect: the sample venues are invented, and Google guesses a real place with a similar name, so for sample events it leads somewhere meaningless. Real events will have real addresses.
 80. **Not merged yet.** This sits on its own branch until you have tried the Google Maps button on the phone.
 
-**Next:** your check of the Google Maps button, then Round 2 (database and manual events). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.
+81. **You confirmed both map buttons on the iPhone.** The branch was merged into `main` and pushed.
+
+**Next:** Round 2 (database and manual events). Round 3 note: `.ics` files are ignored, so the invented test fixtures written there need an explicit exception in `.gitignore`.
