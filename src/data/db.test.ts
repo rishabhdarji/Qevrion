@@ -7,6 +7,7 @@ import {
   deleteSampleEvents,
   getSettings,
   listEvents,
+  MIGRATIONS,
   replaceSampleEvents,
   saveEvent,
   updateSettings,
@@ -15,35 +16,7 @@ import { makeSampleEvents, SAMPLE_COUNT } from './sampleEvents';
 
 // The real SQL runs here, against the SQLite built into Node standing in for the
 // phone's. A mistake in the schema or a query fails this file instead of the app.
-jest.mock('expo-sqlite', () => {
-  const { DatabaseSync } = jest.requireActual('node:sqlite');
-  // One database for the whole file, as one file on the phone would be, so opening
-  // it a second time finds what was saved.
-  const shared = globalThis as { testDatabase?: any };
-  // The phone ignores a parameter name it does not know and binds nothing; be as strict.
-  const db = (shared.testDatabase ??= new DatabaseSync(':memory:', {
-    allowBareNamedParameters: false,
-  }));
-  const args = (params?: unknown) => (params == null ? [] : Array.isArray(params) ? params : [params]);
-  return {
-    openDatabaseSync: () => ({
-      execSync: (sql: string) => db.exec(sql),
-      runSync: (sql: string, params?: unknown) => db.prepare(sql).run(...args(params)),
-      getAllSync: (sql: string, params?: unknown) => db.prepare(sql).all(...args(params)),
-      getFirstSync: (sql: string, params?: unknown) => db.prepare(sql).get(...args(params)) ?? null,
-      withTransactionSync: (task: () => void) => {
-        db.exec('BEGIN');
-        try {
-          task();
-          db.exec('COMMIT');
-        } catch (error) {
-          db.exec('ROLLBACK');
-          throw error;
-        }
-      },
-    }),
-  };
-});
+jest.mock('expo-sqlite', () => jest.requireActual('./sqlite.testing'));
 
 const HOUR = 3_600_000;
 const evening = new Date(2026, 9, 17, 19).getTime();
@@ -121,6 +94,19 @@ describe('events', () => {
 
     saveEvent(dinner, event.id);
     expect(listEvents()[0].isPartiful).toBe(false);
+  });
+
+  it('keeps the name of a photo, changes it, and clears it', () => {
+    saveEvent(dinner);
+    const { id, photo } = listEvents()[0];
+    expect(photo).toBeNull();
+
+    saveEvent({ ...dinner, photo: 'first.jpg' }, id);
+    expect(listEvents()[0].photo).toBe('first.jpg');
+    saveEvent({ ...dinner, photo: 'second.jpg' }, id);
+    expect(listEvents()[0].photo).toBe('second.jpg');
+    saveEvent({ ...dinner, photo: null }, id);
+    expect(listEvents()[0].photo).toBeNull();
   });
 
   it('deletes one event and only that one', () => {
@@ -208,6 +194,37 @@ describe('the database file', () => {
     deleteAllData();
     expect(listEvents()).toEqual([]);
     expect(getSettings().onboardingDone).toBe(false);
+  });
+
+  it('upgrades a database made before photos, keeping what was in it', () => {
+    const { newDatabase } = jest.requireActual<typeof import('./sqlite.testing')>('./sqlite.testing');
+    const old = newDatabase();
+    old.exec(MIGRATIONS[0]);
+    old.exec('PRAGMA user_version = 1');
+    old.exec(
+      `INSERT INTO events (id, source, title, startsAt, endsAt, timeZone, notes, createdAt, updatedAt)
+      VALUES ('abc', 'manual', 'Old dinner', 1000, 2000, 'UTC', 'Bring wine', 1, 1)`,
+    );
+
+    // Hand the old database to a fresh copy of the module, as the next launch would.
+    const shared = globalThis as { testDatabase?: unknown };
+    const current = shared.testDatabase;
+    shared.testDatabase = old;
+    try {
+      let upgraded!: typeof import('./db');
+      jest.isolateModules(() => {
+        upgraded = jest.requireActual('./db');
+      });
+      expect(upgraded.listEvents()).toMatchObject([
+        { id: 'abc', title: 'Old dinner', notes: 'Bring wine', photo: null },
+      ]);
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: MIGRATIONS.length });
+
+      upgraded.saveEvent({ ...dinner, photo: 'new.jpg' }, 'abc');
+      expect(upgraded.listEvents()[0].photo).toBe('new.jpg');
+    } finally {
+      shared.testDatabase = current;
+    }
   });
 
   it('opens again without being rebuilt, with everything still in it', () => {

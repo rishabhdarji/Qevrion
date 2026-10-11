@@ -21,6 +21,7 @@ const draft = (patch: Partial<EventDraft> = {}): EventDraft => ({
   host: '',
   url: '',
   notes: '',
+  photo: null,
   ...patch,
 });
 
