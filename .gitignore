@@ -35,6 +35,8 @@ yarn-error.*
 
 # private data and build outputs that must never be committed
 *.ics
+# except the invented calendar files the tests read
+!src/lib/__fixtures__/*.ics
 *.db
 *.sqlite
 *.ipa

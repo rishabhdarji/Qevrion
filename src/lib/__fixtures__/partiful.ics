@@ -1,0 +1,16 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Example//Qevrion test fixture//EN
+BEGIN:VEVENT
+UID:EXAMPLE123@example.com
+DTSTAMP:20260901T120000Z
+DTSTART:20261024T020000Z
+DTEND:20261024T050000Z
+SUMMARY:Elena's Housewarming
+DESCRIPTION:You are invited! See who is coming and reply here:\nhttps://pa
+ rtiful.com/e/EXAMPLE123
+LOCATION:Flat 3\, 27 Wren Street
+URL:https://partiful.com/e/EXAMPLE123
+ORGANIZER;CN=Elena Marsh:mailto:elena@example.com
+END:VEVENT
+END:VCALENDAR

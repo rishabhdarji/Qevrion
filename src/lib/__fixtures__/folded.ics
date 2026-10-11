@@ -1,0 +1,15 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Example//Qevrion test fixture//EN
+BEGIN:VEVENT
+UID:folded-1@example.com
+DTSTAMP:20260901T120000Z
+DTSTART:20261020T180000Z
+DTEND:20261020T200000Z
+SUMMARY:Board Game Social\, with snacks\; bring a
+  game
+DESCRIPTION:Doors open at six.\nBring a game\, a friend\; or both.\n\nUpst
+ airs\, second door on the left.
+LOCATION:Meeple Corner Café\, 3 Foundry Lane
+END:VEVENT
+END:VCALENDAR
