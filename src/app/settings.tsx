@@ -137,6 +137,12 @@ export default function Settings() {
           divider
           onPress={() => router.push('/gallery')}
         />
+        <ListRow
+          title="Calendar debug"
+          subtitle="Raw fields of five upcoming events"
+          divider
+          onPress={() => router.push('/debug-calendar')}
+        />
       </Card>
 
       <View style={styles.footer}>
