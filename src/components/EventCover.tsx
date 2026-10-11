@@ -13,7 +13,7 @@ type Props = {
 };
 
 // A cover that fills its parent. With a photo: the photo, cropped to fit, under a fade
-// dark enough to keep text readable on a bright picture. Without one: a two-colour
+// dark enough to keep text readable even on a white picture. Without one: a two-colour
 // wash and two faint rings off the top-right corner echoing the mark, under a lighter
 // fade for the text at the bottom.
 export function EventCover({ colors: [from, to], photo }: Props) {
@@ -26,6 +26,8 @@ export function EventCover({ colors: [from, to], photo }: Props) {
           source={{ uri: photo }}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
+          // Fades in, so a card does not sit dark and then jump to the picture.
+          transition={200}
           // Decorative: the title beside it says what the event is.
           accessible={false}
         />
@@ -38,9 +40,9 @@ export function EventCover({ colors: [from, to], photo }: Props) {
           </LinearGradient>
           <LinearGradient id={`scrim${id}`} x1="0" y1="0" x2="0" y2="1">
             {/* Over a photo the top is dimmed too, for the controls and the countdown. */}
-            <Stop offset="0" stopColor={colors.background} stopOpacity={photo ? 0.35 : 0} />
-            <Stop offset="0.4" stopColor={colors.background} stopOpacity={photo ? 0.3 : 0} />
-            <Stop offset="1" stopColor={colors.background} stopOpacity={photo ? 0.88 : 0.72} />
+            <Stop offset="0" stopColor={colors.background} stopOpacity={photo ? 0.45 : 0} />
+            <Stop offset="0.4" stopColor={colors.background} stopOpacity={photo ? 0.55 : 0} />
+            <Stop offset="1" stopColor={colors.background} stopOpacity={photo ? 0.94 : 0.72} />
           </LinearGradient>
         </Defs>
         {photo ? null : (

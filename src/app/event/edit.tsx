@@ -6,6 +6,7 @@ import {
   AccessibilityInfo,
   Alert,
   Platform,
+  Pressable,
   StyleSheet,
   Switch,
   TextInput,
@@ -141,7 +142,9 @@ export default function EditEvent() {
   const pickPhoto = async () => {
     try {
       const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
-      if (!picked.canceled) set({ photo: picked.assets[0].uri });
+      if (picked.canceled) return;
+      set({ photo: picked.assets[0].uri });
+      AccessibilityInfo.announceForAccessibility('Photo added');
     } catch {
       Alert.alert('Could not open your photos', 'Please try again.');
     }
@@ -180,7 +183,13 @@ export default function EditEvent() {
     >
       <ScreenHeader leading="close" title={id ? 'Edit event' : 'New event'} />
 
-      <View style={styles.banner}>
+      {/* With no photo yet, a tap anywhere on the banner opens the picker, not only on
+          the small button. VoiceOver still lands on the button alone. */}
+      <Pressable
+        accessible={false}
+        style={styles.banner}
+        onPress={draft.photo ? undefined : pickPhoto}
+      >
         <EventCover colors={event?.cover ?? covers.slate} photo={draft.photo} />
         <View style={styles.bannerActions}>
           {draft.photo ? (
@@ -190,14 +199,17 @@ export default function EditEvent() {
                 label="Remove"
                 icon="close"
                 accessibilityLabel="Remove photo"
-                onPress={() => set({ photo: null })}
+                onPress={() => {
+                  set({ photo: null });
+                  AccessibilityInfo.announceForAccessibility('Photo removed');
+                }}
               />
             </>
           ) : (
             <Pill label="Add a photo" icon="photo" onPress={pickPhoto} />
           )}
         </View>
-      </View>
+      </Pressable>
 
       <Field
         label="Title"
