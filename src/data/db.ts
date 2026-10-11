@@ -23,6 +23,8 @@ import type {
 // stored as a file name (src/data/photos.ts). Version 3 is for imports: `deletedAt`
 // marks an imported event the owner deleted, kept so that the next sync does not bring
 // it back, and an event's key becomes unique within the calendar or file it came from.
+// A row that shares its key with an earlier one is dropped first: the index could not
+// be built over it, and a database that cannot be upgraded cannot be opened.
 export const MIGRATIONS = [
   `CREATE TABLE events (
     id TEXT PRIMARY KEY NOT NULL,
@@ -65,6 +67,8 @@ export const MIGRATIONS = [
   INSERT INTO settings (id) VALUES (1);`,
   `ALTER TABLE events ADD COLUMN photo TEXT;`,
   `ALTER TABLE events ADD COLUMN deletedAt INTEGER;
+  DELETE FROM events WHERE sourceId IS NOT NULL AND rowid NOT IN (
+    SELECT min(rowid) FROM events WHERE sourceId IS NOT NULL GROUP BY source, sourceId);
   CREATE UNIQUE INDEX events_source ON events (source, sourceId) WHERE sourceId IS NOT NULL;`,
 ];
 

@@ -621,6 +621,26 @@ describe('the database file', () => {
     });
   });
 
+  it('still upgrades when two old rows share a key, keeping the first', () => {
+    const old = newDatabase();
+    old.exec(MIGRATIONS[0]);
+    old.exec(MIGRATIONS[1]);
+    old.exec('PRAGMA user_version = 2');
+    old.exec(
+      `INSERT INTO events (id, source, sourceId, title, startsAt, endsAt, timeZone, createdAt, updatedAt)
+      VALUES ('s1', 'manual', 'sample:1', 'Sample one', 1000, 2000, 'UTC', 1, 1),
+        ('s2', 'manual', 'sample:1', 'Sample one again', 1000, 2000, 'UTC', 1, 1),
+        ('abc', 'manual', NULL, 'Old dinner', 1000, 2000, 'UTC', 1, 1),
+        ('def', 'manual', NULL, 'Old dinner', 1000, 2000, 'UTC', 1, 1)`,
+    );
+
+    launchWith(old, (upgraded) => {
+      // Events with no key are never touched, however alike they are.
+      expect(upgraded.listEvents().map((event) => event.id).sort()).toEqual(['abc', 'def', 's1']);
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: 3 });
+    });
+  });
+
   it('opens again without being rebuilt, with everything still in it', () => {
     saveEvent(dinner);
     updateSettings({ onboardingDone: true });
