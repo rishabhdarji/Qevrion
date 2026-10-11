@@ -208,6 +208,9 @@ export function parseIcs(
         }
         // The occurrence as it stands, which a change may have moved or rewritten.
         // Its key is its original start, so it stays the same event when moved again.
+        // ponytail: for a whole day, or a time with no zone, that start is worked out
+        // on this phone's clock, so the key changes if the phone changes zone before
+        // the same file is read again. Key those by the date as written when that bites.
         const { item, startDate, endDate } = event.getOccurrenceDetails(next);
         const occurrence = imported(item, `${key}|${iso(original)}`, startDate, endDate);
         if (occurrence.startsAt > window.to || occurrence.endsAt < window.from) continue;
