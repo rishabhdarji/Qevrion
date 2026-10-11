@@ -57,6 +57,7 @@ const upcoming: QevrionEvent[] = makeSampleEvents(openedAt)
     id: `gallery-${index}`,
     source: 'manual',
     isPartiful: false,
+    photo: null,
     isSample: true,
     cover: Object.values(covers)[index],
     hasConflict: false,
