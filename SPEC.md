@@ -30,6 +30,7 @@ These are fixed for v0.0.1. Facts marked "verify" were true when this spec was w
 - Location and compass: `expo-location` (position, heading, geocoding). Motion: `expo-sensors`.
 - Map: `react-native-maps` (Apple Maps on iOS, no key needed).
 - Camera: `expo-camera`.
+- Event photos: `expo-image-picker` (the system photo picker, which needs no permission), kept as files with `expo-file-system`, shown with `expo-image`.
 - Animation: `react-native-reanimated`. Haptics: `expo-haptics`.
 - Tests: Jest for logic (parsers, scheduler, geo maths).
 
@@ -41,6 +42,7 @@ Every one of these must be confirmed to work in Expo Go on the chosen SDK before
 |---|---|---|---|
 | Address to coordinates | iOS built-in geocoder via `expo-location` | none | Rate limited. Geocode lazily, one at a time, cache in the database. |
 | Walking route | openrouteservice, foot-walking profile | free key, user pastes it in Settings | Free plan allows 2,000 direction requests a day (verify). Cache routes. |
+| Address suggestions | Photon (OpenStreetMap data) or openrouteservice's autocomplete | none, or the same free key | Chosen in the map round by trying both on real, partly typed addresses. Google's suggestions need a billing account with a credit card, so they are out. |
 | Weather | Open-Meteo | none | Only for events in the next 14 days. |
 | Repo, CI, website hosting | GitHub, GitHub Actions, GitHub Pages | free for public repos | |
 
@@ -57,7 +59,8 @@ If no openrouteservice key is set, the app still works: it shows straight-line d
 ### F2. Import
 - From iOS Calendar: choose which calendars to read, date range (30 days back to 12 months ahead), and an optional "only events with a partiful.com link" switch.
 - From an `.ics` file.
-- Manual add and edit.
+- Manual add and edit, with an optional photo for the event chosen from the phone's library. The photo stays on the phone.
+- While typing where an event is, a short list of matching addresses to tap, which fills in the full address and its coordinates (built with the map).
 - Re-sync on app open and on pull-to-refresh. Match by the calendar's event id; fall back to title + start time. Never overwrite my notes, checklist, tags or custom reminders. If an event disappears from the calendar, mark it "Removed from calendar" instead of deleting it.
 - If an event contains a `partiful.com` link, tag it as Partiful and show an "Open in Partiful" button.
 - Done when: importing the same calendar twice creates zero duplicates.
@@ -70,7 +73,7 @@ If no openrouteservice key is set, the app still works: it shows straight-line d
 - See section 8 for the scheduler rules.
 
 ### F4. Event detail and key details
-- Cover area, title, date and time in my time zone, venue with small map, host, full description, link.
+- Cover area (the event's own photo when it has one, otherwise a colour wash), title, date and time in my time zone, venue with small map, host, full description, link.
 - "Key details" chips extracted from the description by rules: schedule lines with times, dress code, what to bring, cost or tickets, age limit, parking, food and drink, RSVP deadline, links.
 - My notes and a simple prep checklist.
 - Weather forecast for the event time if it's within 14 days.
@@ -151,7 +154,7 @@ Dark-first, calm, premium. The screenshots in `design-refs/` set the mood. Borro
 
 ## 7. Data model
 
-**Event**: id, source (`calendar` | `ics` | `manual`), sourceId, title, startsAt, endsAt, allDay, timeZone, locationText, lat, lng, geocodeStatus, url, host, description, isPartiful, tags, notes, checklist, keyDetails (derived), reminderOffsets (null means use defaults), removedFromSource, createdAt, updatedAt, lastSyncedAt.
+**Event**: id, source (`calendar` | `ics` | `manual`), sourceId, title, startsAt, endsAt, allDay, timeZone, locationText, lat, lng, geocodeStatus, url, host, description, isPartiful, tags, notes, checklist, photo (a file name; the file is on the device), keyDetails (derived), reminderOffsets (null means use defaults), removedFromSource, createdAt, updatedAt, lastSyncedAt.
 
 **Settings**: defaultOffsets, digestEnabled, digestTime, weeklyPreviewEnabled, importCalendarIds, onlyPartifulLinks, units, onboardingDone. The openrouteservice key is in secure storage, not in SQLite.
 
@@ -178,7 +181,7 @@ Store times in UTC, display in the device time zone. Use migrations from the fir
 
 ## 10. Not in v0.0.1 (backlog)
 
-True ARKit world tracking and geo anchors; home-screen widgets and Live Activities; remote push; AI summaries and an "Ask Qevrion" chat (bring your own key); adding events from the share sheet; reading invite emails; travel-time-aware "leave now" alerts; photos and memories per event; light theme; Android.
+True ARKit world tracking and geo anchors; home-screen widgets and Live Activities; remote push; AI summaries and an "Ask Qevrion" chat (bring your own key); adding events from the share sheet; reading invite emails; travel-time-aware "leave now" alerts; more than one photo per event, and memories; light theme; Android.
 
 ## 11. Repo and website
 

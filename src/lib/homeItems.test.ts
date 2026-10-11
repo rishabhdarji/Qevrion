@@ -32,6 +32,7 @@ function event(id: string, startsAt: number, extra: Partial<QevrionEvent> = {}):
     isPartiful: false,
     notes: '',
     keyDetails: [],
+    photo: null,
     isSample: true,
     cover: ['#000000', '#000000'],
     hasConflict: false,

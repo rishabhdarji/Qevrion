@@ -15,6 +15,8 @@ export type EventDraft = {
   host: string;
   url: string;
   notes: string;
+  /** The photo to show: the event's own, or one just picked and not yet saved. */
+  photo: string | null;
 };
 
 export type DraftErrors = { title?: string; start?: string; end?: string };
@@ -35,6 +37,7 @@ export function newDraft(now: number): EventDraft {
     host: '',
     url: '',
     notes: '',
+    photo: null,
   };
 }
 
@@ -49,6 +52,7 @@ export function eventToDraft(event: QevrionEvent): EventDraft {
     host: event.host,
     url: event.url ?? '',
     notes: event.notes,
+    photo: event.photo,
   };
 }
 
@@ -87,5 +91,6 @@ export function draftToFields(draft: EventDraft): EventFields {
     // "partiful.com/e/abc" is a link someone meant to be tappable.
     url: url === '' ? null : /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`,
     notes: draft.notes.trim(),
+    photo: draft.photo,
   };
 }

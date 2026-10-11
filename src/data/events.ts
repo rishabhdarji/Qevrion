@@ -1,10 +1,10 @@
 import { useSyncExternalStore } from 'react';
 
-import { findConflicts } from '@/lib/conflicts';
-import { covers } from '@/theme';
-import type { EventFields, QevrionEvent } from '@/types';
-
+import { findConflicts } from '../lib/conflicts';
+import { covers } from '../theme';
+import type { EventFields, QevrionEvent } from '../types';
 import * as db from './db';
+import { dropAllPhotos, dropPhoto, keepPhoto, photoName, photoUri } from './photos';
 import { makeSampleEvents } from './sampleEvents';
 
 // The one place screens get events from, and the one place they change them.
@@ -22,16 +22,18 @@ const listeners = new Set<() => void>();
 function load(): QevrionEvent[] {
   const stored = db.listEvents().sort((a, b) => a.startsAt - b.startsAt);
   const conflicts = findConflicts(stored);
-  return stored.map(({ sourceId, ...event }) => ({
+  return stored.map(({ sourceId, photo, ...event }) => ({
     ...event,
+    photo: photo ? photoUri(photo) : null,
     isSample: sourceId?.startsWith(db.SAMPLE_PREFIX) ?? false,
-    // No stored image yet, so each event keeps one wash, picked by its id.
+    // Shown where an event has no photo: each keeps one wash, picked by its id.
     cover: palette[[...event.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length],
     hasConflict: conflicts.has(event.id),
   }));
 }
 
-const getSnapshot = () => (events ??= load());
+/** Every event, soonest first. For code that is not a component; components use `useEvents`. */
+export const getEvents = (): QevrionEvent[] => (events ??= load());
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -45,9 +47,14 @@ function changed() {
   listeners.forEach((listener) => listener());
 }
 
+/** Deletes the photo files of events that are about to go. */
+function dropPhotosOf(going: QevrionEvent[]) {
+  going.forEach((event) => event.photo && dropPhoto(photoName(event.photo)));
+}
+
 /** Every event, soonest first. */
 export function useEvents(): QevrionEvent[] {
-  return useSyncExternalStore(subscribe, getSnapshot);
+  return useSyncExternalStore(subscribe, getEvents);
 }
 
 export function useEvent(id: string | undefined): QevrionEvent | undefined {
@@ -56,27 +63,40 @@ export function useEvent(id: string | undefined): QevrionEvent | undefined {
 
 /** Adds an event, or with `id` updates that one. */
 export function saveEvent(fields: EventFields, id?: string): void {
-  db.saveEvent(fields, id);
+  const before = getEvents().find((event) => event.id === id)?.photo ?? null;
+  const shown = fields.photo ?? null;
+  // A newly picked photo is copied in before the event is written, and the one it
+  // replaces is only deleted afterwards, so a failed save loses nothing.
+  const name = shown === before ? before && photoName(before) : shown && keepPhoto(shown);
+  db.saveEvent({ ...fields, photo: name }, id);
+  if (before && shown !== before) dropPhoto(photoName(before));
   changed();
 }
 
 export function removeEvent(id: string): void {
+  const going = getEvents().filter((event) => event.id === id);
   db.deleteEvent(id);
+  dropPhotosOf(going);
   changed();
 }
 
 /** Puts in a fresh set of sample events, replacing any that are already there. */
 export function insertSampleEvents(): void {
+  const going = getEvents().filter((event) => event.isSample);
   db.replaceSampleEvents(makeSampleEvents(Date.now()));
+  dropPhotosOf(going);
   changed();
 }
 
 export function removeSampleEvents(): void {
+  const going = getEvents().filter((event) => event.isSample);
   db.deleteSampleEvents();
+  dropPhotosOf(going);
   changed();
 }
 
 export function deleteAllData(): void {
   db.deleteAllData();
+  dropAllPhotos();
   changed();
 }

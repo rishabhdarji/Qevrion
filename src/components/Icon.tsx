@@ -23,6 +23,7 @@ const ICONS = {
   walk: { ios: 'figure.walk', android: 'directions_walk', web: 'directions_walk' },
   warning: { ios: 'exclamationmark.triangle', android: 'warning', web: 'warning' },
   bell: { ios: 'bell', android: 'notifications', web: 'notifications' },
+  photo: { ios: 'photo', android: 'image', web: 'image' },
 } as const satisfies Record<string, SymbolViewProps['name']>;
 
 export type IconName = keyof typeof ICONS;

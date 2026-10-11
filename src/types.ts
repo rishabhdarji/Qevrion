@@ -19,6 +19,8 @@ export type QevrionEvent = {
   isPartiful: boolean;
   notes: string;
   keyDetails: string[];
+  /** Where the event's own photo is, ready to show. Null when it has none. */
+  photo: string | null;
 
   // Worked out when events are loaded (src/data/events.ts), not stored.
   isSample: boolean;
@@ -31,6 +33,8 @@ export type EventFields = Pick<
   QevrionEvent,
   'title' | 'startsAt' | 'endsAt' | 'allDay' | 'locationText' | 'host' | 'url' | 'notes'
 > & {
+  /** A photo to show: the one the event already has, or one just picked. */
+  photo?: string | null;
   // Written when the event is created and left alone by later edits.
   sourceId?: string;
   description?: string;

@@ -11,8 +11,9 @@ import type { EventFields, QevrionEvent, Settings } from '../types';
 
 // One entry per schema version, run in order. Never edit an entry that has shipped:
 // to change the schema, add a new one. Version 1 is SPEC section 7 (Event, Settings).
-// Lists are JSON text and yes/no values are 0 or 1.
-const MIGRATIONS = [
+// Lists are JSON text and yes/no values are 0 or 1. Version 2 adds the event's photo,
+// stored as a file name (src/data/photos.ts).
+export const MIGRATIONS = [
   `CREATE TABLE events (
     id TEXT PRIMARY KEY NOT NULL,
     source TEXT NOT NULL,
@@ -52,6 +53,7 @@ const MIGRATIONS = [
     onboardingDone INTEGER NOT NULL DEFAULT 0
   ) STRICT;
   INSERT INTO settings (id) VALUES (1);`,
+  `ALTER TABLE events ADD COLUMN photo TEXT;`,
 ];
 
 let opened: SQLiteDatabase | undefined;
@@ -79,6 +81,7 @@ function db(): SQLiteDatabase {
 /** Sample events carry this at the start of `sourceId`, which is how they are found again. */
 export const SAMPLE_PREFIX = 'sample:';
 
+/** An event as the database holds it. Here `photo` is the photo's file name, not its address. */
 export type StoredEvent = Omit<QevrionEvent, 'isSample' | 'cover' | 'hasConflict'> & {
   sourceId: string | null;
 };
@@ -94,7 +97,7 @@ export function listEvents(): StoredEvent[] {
   return db()
     .getAllSync<EventRow>(
       `SELECT id, source, sourceId, title, startsAt, endsAt, allDay, locationText, url, host,
-        description, isPartiful, notes, keyDetails
+        description, isPartiful, notes, keyDetails, photo
       FROM events`,
     )
     .map((row) => {
@@ -110,16 +113,20 @@ export function listEvents(): StoredEvent[] {
     });
 }
 
-/** Adds an event, or with `id` updates the fields the form edits and nothing else. */
+/**
+ * Adds an event, or with `id` updates the fields the form edits and nothing else.
+ * `fields.photo` is the photo's stored file name here (see src/data/events.ts).
+ */
 export function saveEvent(fields: EventFields, id?: string): void {
   const { allDay } = fields;
   const description = fields.description ?? '';
   db().runSync(
     `INSERT INTO events (id, source, sourceId, title, startsAt, endsAt, allDay, timeZone,
-      locationText, url, host, description, isPartiful, notes, keyDetails, createdAt, updatedAt)
+      locationText, url, host, description, isPartiful, notes, keyDetails, photo, createdAt,
+      updatedAt)
     VALUES (coalesce($id, lower(hex(randomblob(16)))), 'manual', $sourceId, $title, $startsAt,
       $endsAt, $allDay, $timeZone, $locationText, $url, $host, $description, $isPartiful, $notes,
-      $keyDetails, $now, $now)
+      $keyDetails, $photo, $now, $now)
     ON CONFLICT (id) DO UPDATE SET
       title = excluded.title,
       startsAt = excluded.startsAt,
@@ -129,6 +136,7 @@ export function saveEvent(fields: EventFields, id?: string): void {
       url = excluded.url,
       host = excluded.host,
       notes = excluded.notes,
+      photo = excluded.photo,
       isPartiful = excluded.isPartiful OR events.description LIKE '%partiful.com%',
       updatedAt = excluded.updatedAt`,
     {
@@ -146,6 +154,7 @@ export function saveEvent(fields: EventFields, id?: string): void {
       $isPartiful: /partiful\.com/i.test(`${fields.url} ${description}`) ? 1 : 0,
       $notes: fields.notes,
       $keyDetails: JSON.stringify(fields.keyDetails ?? []),
+      $photo: fields.photo ?? null,
       $now: Date.now(),
     },
   );

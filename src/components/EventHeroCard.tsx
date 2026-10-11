@@ -48,7 +48,7 @@ export function EventHeroCard({ event, onPress }: Props) {
       style={[styles.card, { minHeight }]}
       onPress={onPress ? () => onPress(event) : undefined}
     >
-      <EventCover colors={event.cover} />
+      <EventCover colors={event.cover} photo={event.photo} />
       <View style={styles.top}>
         <Countdown startsAt={event.startsAt} />
         {event.isSample ? <SampleBadge /> : null}

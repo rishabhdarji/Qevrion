@@ -46,7 +46,9 @@ export default function EventDetail() {
 
   const navigate = () => router.push({ pathname: '/navigate/[id]', params: { id: event.id } });
   const edit = () => router.push({ pathname: '/event/edit', params: { id: event.id } });
-  const { url } = event;
+  // Only ordinary web links get a button. Once events are imported a link is text from
+  // outside, and anything else (a phone number, another app's address) is not opened.
+  const url = event.url && /^https?:\/\//i.test(event.url) ? event.url : null;
   const when = formatEventSpan(event);
 
   return (
@@ -56,7 +58,7 @@ export default function EventDetail() {
       footer={event.locationText ? <PrimaryButton label="Navigate" onPress={navigate} /> : undefined}
     >
       <View style={[styles.cover, { paddingTop: insets.top + space[2] }]}>
-        <EventCover colors={event.cover} />
+        <EventCover colors={event.cover} photo={event.photo} />
         <View style={styles.coverBar}>
           <View style={styles.floating}>
             <IconButton icon="back" label="Back" onPress={() => router.back()} />

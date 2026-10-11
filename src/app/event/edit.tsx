@@ -1,10 +1,12 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Alert,
   Platform,
+  Pressable,
   StyleSheet,
   Switch,
   TextInput,
@@ -12,6 +14,8 @@ import {
   type TextInputProps,
 } from 'react-native';
 
+import { EventCover } from '@/components/EventCover';
+import { Pill } from '@/components/Pill';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -30,7 +34,7 @@ import {
   type DraftErrors,
   type EventDraft,
 } from '@/lib/eventDraft';
-import { colors, radius, size, space, type } from '@/theme';
+import { colors, covers, radius, size, space, type } from '@/theme';
 
 function Problem({ children }: { children?: string }) {
   return children ? (
@@ -133,6 +137,19 @@ export default function EditEvent() {
     router.back();
   };
 
+  // The iPhone's own picker: it hands over the one photo chosen and asks for no
+  // permission. The photo is only copied into the app when the event is saved.
+  const pickPhoto = async () => {
+    try {
+      const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+      if (picked.canceled) return;
+      set({ photo: picked.assets[0].uri });
+      AccessibilityInfo.announceForAccessibility('Photo added');
+    } catch {
+      Alert.alert('Could not open your photos', 'Please try again.');
+    }
+  };
+
   const remove = () =>
     confirmDestructive(
       'Delete this event?',
@@ -165,6 +182,35 @@ export default function EditEvent() {
       }
     >
       <ScreenHeader leading="close" title={id ? 'Edit event' : 'New event'} />
+
+      {/* With no photo yet, a tap anywhere on the banner opens the picker, not only on
+          the small button. VoiceOver still lands on the button alone. */}
+      <Pressable
+        accessible={false}
+        style={styles.banner}
+        onPress={draft.photo ? undefined : pickPhoto}
+      >
+        <EventCover colors={event?.cover ?? covers.slate} photo={draft.photo} />
+        <View style={styles.bannerActions}>
+          {draft.photo ? (
+            <>
+              <Pill label="Change" icon="photo" accessibilityLabel="Change photo" onPress={pickPhoto} />
+              <Pill
+                label="Remove"
+                icon="close"
+                accessibilityLabel="Remove photo"
+                onPress={() => {
+                  set({ photo: null });
+                  AccessibilityInfo.announceForAccessibility('Photo removed');
+                }}
+              />
+            </>
+          ) : (
+            <Pill label="Add a photo" icon="photo" onPress={pickPhoto} />
+          )}
+        </View>
+      </Pressable>
+
       <Field
         label="Title"
         value={draft.title}
@@ -267,6 +313,23 @@ const styles = StyleSheet.create({
   },
   footerProblem: {
     textAlign: 'center',
+  },
+  banner: {
+    // Wide and short, like the header it becomes on the event's own screen.
+    height: 168,
+    justifyContent: 'flex-end',
+    marginBottom: space[5],
+    padding: space[4],
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  bannerActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space[2],
   },
   picker: {
     alignSelf: 'flex-start',
