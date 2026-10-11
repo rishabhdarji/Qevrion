@@ -33,7 +33,7 @@ export const colors = {
   overlay: 'rgba(14,14,16,0.55)',
   destructiveTint: 'rgba(240,86,74,0.12)',
 
-  // The drawn map on Navigate until the real map arrives in Round 6.
+  // The drawn map on Navigate until the real map arrives in Round 4.
   mapLand: '#1A2740',
   mapBlock: '#27375A',
   mapPark: '#17403F',

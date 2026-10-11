@@ -22,7 +22,7 @@ function Value({ children }: { children: string }) {
 }
 
 // Settings. Rows are laid out in Round 1; each group becomes real in the round that
-// builds its feature (import 3, reminders 4, route key 6).
+// builds its feature (import 3, route key 4, reminders 6).
 export default function Settings() {
   const router = useRouter();
   const version = Constants.expoConfig?.version ?? '';

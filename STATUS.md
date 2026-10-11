@@ -18,13 +18,13 @@ Round 1 is look and navigation only. These are placeholders, each marked in the 
 - **Events are invented samples** (`src/data/sampleEvents.ts`), each labelled "Sample". Screens read them through `useEvents()` and `useEvent()` in `src/data/events.ts`; Round 2 swaps those two functions for the database.
 - **Nothing is saved.** Add/edit fields, notes, the checklist and Settings rows do not persist (Round 2 onward).
 - **Onboarding shows on every full restart**, because nothing remembers that it was finished (Round 2).
-- **No permission is asked for.** Onboarding's "Import events" and "Turn on reminders" only move to the next page (Rounds 3 and 4).
+- **No permission is asked for.** Onboarding's "Import events" and "Turn on reminders" only move to the next page (Rounds 3 and 6).
 - **Import shows sample calendars and a sample result** (Round 3).
-- **Navigate's map is a drawing**, the same picture, distance and time for every event (Round 6). A caption on the screen says so.
-- **AR Walk has no camera, GPS or compass**; the arrow does not move (Round 7). The button that opens it reads "Preview AR Walk" until then.
-- **"Open in Apple Maps" works**: it opens walking directions to the event's address in the Maps app. Sample venues are invented, so Maps will not find them; it becomes useful with real events from Round 2.
+- **Navigate's map is a drawing**, the same picture, distance and time for every event (Round 4). A caption on the screen says so.
+- **AR Walk has no camera, GPS or compass**; the arrow does not move (Round 5). The button that opens it reads "Preview AR Walk" until then.
+- **"Open in Apple Maps" and "Open in Google Maps" work**: each opens walking directions to the event's address in that app (Google Maps falls back to its website if the app is not installed). Sample venues are invented, so neither will find them; they become useful with real events from Round 2. Apple Maps was confirmed on the iPhone on 10 Oct 2026 and Google Maps on 11 Oct 2026.
 - **"Open in Partiful" and "Delete all data" do nothing yet.** "Source code" in Settings does open the GitHub repo.
-- Key details, conflicts, weather and reminders are sample values or absent (Rounds 4 and 5).
+- Key details, conflicts, weather and reminders are sample values or absent (Rounds 6 and 7).
 
 ## Known issues
 
@@ -47,8 +47,9 @@ Round 1 is look and navigation only. These are placeholders, each marked in the 
 - **Mark at small sizes.** Beside the Home wordmark at 24 pt the mark read as a second search icon, directly above the real one. The Home and Archive headers now show the serif wordmark alone. The mark appears on the Splash, onboarding page 1, the icon, empty states and the Settings footer; under 32 pt its tail is drawn from the ring's centre (`QevrionMark.tsx`). This departs from the plan, which put the mark beside the wordmark: owner to confirm, and it is a one-line change to put back.
 - **Dividers are 1 pt, not hairlines.** A hairline at 8% white nearly vanishes on a 3x iPhone screen.
 - **Mock-ups must say so on the screen (owner feedback, 10 Oct 2026).** When testing Round 1 the owner took the drawn map and the AR Walk shell for broken features. A placeholder needs a plain caption on the screen itself, and a button that cannot do its job yet should either work in a simpler way or be named as a preview. A note in the plan is not enough.
-- **Apple Maps link.** `src/lib/maps.ts` uses the older `?daddr=...&dirflg=w` link because Apple's newer `/directions?destination=` form needs iOS 18.4 and the app supports 16.4. Apple's server turns the old form into the new one, checked in a browser on 10 Oct 2026. Not yet confirmed on the phone.
-- **Open question for the owner: order of the rounds.** The map (Round 6) and AR Walk (Round 7) matter most to the owner and sit late in the plan. They need real addresses, which arrive with Round 2. Moving them to straight after Round 2 is possible.
+- **Apple Maps link.** `src/lib/maps.ts` uses the older `?daddr=...&dirflg=w` link because Apple's newer `/directions?destination=` form needs iOS 18.4 and the app supports 16.4. Apple's server turns the old form into the new one, checked in a browser on 10 Oct 2026. Confirmed on the iPhone on 10 Oct 2026.
+- **Round order changed (owner decision, 10 Oct 2026).** The map and AR Walk moved ahead of reminders and key details, and the rounds were renumbered to match: 2 database, 3 import, **4 map and walking route, 5 AR Walk, 6 reminders, 7 key details, weather and conflicts**, then 8 to 10 as before. The map cannot come before Round 3, which turns addresses into coordinates. Log book entries before number 75 use the old numbers (map 6, AR Walk 7, reminders 4, key details 5).
+- **Google Maps (owner decision, 10 Oct 2026).** Navigate offers "Open in Google Maps" beside "Open in Apple Maps". It is a plain link (`src/lib/maps.ts`): no Google SDK, no key, no cost.
 - **Source layout.** Screens live in `src/app/` (the template's layout). `@/` points at `src/`.
 - **Design references** live in `design-refs/`, which is git-ignored. Notes are in `docs/DESIGN_NOTES.md`.
 - **Design tokens (10 Oct 2026).** Lighter label grey `#85858D`: accepted. Top glow: partly accepted, subtle and not on every screen. Corner sizes chosen by the owner on a sample screen: cards 28, chips/tags/thumbnails 17, buttons fully rounded. These override SPEC section 6 (see `docs/DESIGN_NOTES.md`, Decisions).

@@ -16,7 +16,7 @@ const HORIZON = { x: 195, y: 300 };
 const FLOOR_LINES = [-200, -60, 60, 140, 250, 330, 450, 590];
 
 // AR Walk shell.
-// ponytail: no camera, GPS or compass yet. Round 7 puts the live camera behind this
+// ponytail: no camera, GPS or compass yet. Round 5 puts the live camera behind this
 // and turns the arrow with the phone's heading.
 export default function ArWalk() {
   const router = useRouter();

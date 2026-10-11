@@ -44,7 +44,7 @@ Every one of these must be confirmed to work in Expo Go on the chosen SDK before
 | Weather | Open-Meteo | none | Only for events in the next 14 days. |
 | Repo, CI, website hosting | GitHub, GitHub Actions, GitHub Pages | free for public repos | |
 
-If no openrouteservice key is set, the app still works: it shows straight-line direction and distance, and offers "Open in Apple Maps".
+If no openrouteservice key is set, the app still works: it shows straight-line direction and distance, and offers "Open in Apple Maps" and "Open in Google Maps".
 
 ## 4. Features for v0.0.1
 
@@ -79,7 +79,7 @@ If no openrouteservice key is set, the app still works: it shows straight-line d
 ### F5. Navigate
 - Map card with my position, the venue, and the walking route.
 - Stats: distance, walking time, "leave by" time.
-- Buttons: "Start AR Walk" and "Open in Apple Maps".
+- Buttons: "Start AR Walk", "Open in Apple Maps" and "Open in Google Maps". The two map buttons are plain links that hand the address to the other app (Google Maps falls back to its website if the app is not installed). No Google SDK and no key.
 
 ### F6. AR Walk
 - Full-screen rear camera. An arrow that looks anchored to the ground rotates to point toward the next turn on the route (or straight to the venue if no route).

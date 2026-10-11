@@ -47,10 +47,10 @@ Invites pile up. They live in different apps, the details are buried in long des
 | 1 | Design system and app shell | **Done** |
 | 2 | Database and manual events | Next |
 | 3 | Import from Calendar and `.ics` | Planned |
-| 4 | Reminders | Planned |
-| 5 | Key details, weather, conflicts | Planned |
-| 6 | Map and walking route | Planned |
-| 7 | AR Walk | Planned |
+| 4 | Map and walking route | Planned |
+| 5 | AR Walk | Planned |
+| 6 | Reminders | Planned |
+| 7 | Key details, weather, conflicts | Planned |
 | 8 | Polish, tests and the v0.0.1 release | Planned |
 | 9 | Landing website | Planned |
 | 10 | Install as a standalone app | Planned |

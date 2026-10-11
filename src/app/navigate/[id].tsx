@@ -14,14 +14,14 @@ import { StatGrid } from '@/components/StatGrid';
 import { Txt } from '@/components/Txt';
 import { useEvent } from '@/data/events';
 import { formatTime } from '@/lib/dates';
-import { appleMapsWalkingUrl } from '@/lib/maps';
+import { appleMapsWalkingUrl, googleMapsWalkingUrl } from '@/lib/maps';
 import { colors, radius, space } from '@/theme';
 
 const WALK_MINUTES = 17;
 const ROUTE = 'M92 86L138 112H266L286 128V226H256L250 262';
 const MINUTE = 60_000;
 
-// ponytail: a drawing, not a map. Round 6 replaces it with Apple Maps, the phone's
+// ponytail: a drawing, not a map. Round 4 replaces it with Apple Maps, the phone's
 // position and a real walking route.
 function DrawnMap() {
   return (
@@ -67,13 +67,15 @@ export default function Navigate() {
   }
 
   const leaveBy = event.startsAt - (WALK_MINUTES + 5) * MINUTE;
+  const openIn = (app: string, url: string) =>
+    Linking.openURL(url).catch(() => Alert.alert(`Could not open ${app}`));
 
   return (
     <Screen
       glow
       footer={
         <PrimaryButton
-          // ponytail: "Preview" until Round 7 makes AR Walk real, then "Start AR Walk".
+          // ponytail: "Preview" until Round 5 makes AR Walk real, then "Start AR Walk".
           label="Preview AR Walk"
           onPress={() => router.push({ pathname: '/walk/[id]', params: { id: event.id } })}
         />
@@ -102,7 +104,7 @@ export default function Navigate() {
 
       <Txt variant="caption" color="textTertiary" style={styles.note}>
         A sample picture and sample numbers, the same for every event. The live map and your
-        real route arrive in a later build. Open in Apple Maps works today.
+        real route arrive in a later build. The two map buttons below work today.
       </Txt>
 
       <StatGrid
@@ -117,12 +119,13 @@ export default function Navigate() {
       <View style={styles.maps}>
         <SecondaryButton
           label="Open in Apple Maps"
-          accessibilityHint="Opens walking directions in the Maps app"
-          onPress={() =>
-            Linking.openURL(appleMapsWalkingUrl(event.locationText)).catch(() =>
-              Alert.alert('Could not open Maps', 'Check that the Maps app is installed.'),
-            )
-          }
+          accessibilityHint="Opens walking directions in Apple Maps"
+          onPress={() => openIn('Apple Maps', appleMapsWalkingUrl(event.locationText))}
+        />
+        <SecondaryButton
+          label="Open in Google Maps"
+          accessibilityHint="Opens walking directions in Google Maps, or on its website if the app is not installed"
+          onPress={() => openIn('Google Maps', googleMapsWalkingUrl(event.locationText))}
         />
       </View>
     </Screen>
@@ -136,6 +139,7 @@ const styles = StyleSheet.create({
   },
   maps: {
     marginTop: space[6],
+    gap: space[3],
   },
   map: {
     // Wider than tall, so the stats stay in view above the pinned button.
