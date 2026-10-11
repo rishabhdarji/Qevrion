@@ -1,4 +1,5 @@
 import type { ImportedEvent, ImportResult, ImportScope } from '../types';
+import { dayStart } from './dates';
 
 // The rules of an import, worked out without a database: given what is stored and what
 // a calendar or a file has just handed over, what to add, change, re-key and mark as
@@ -51,19 +52,30 @@ function cut(value: unknown, max: number): string {
 }
 
 /**
+ * A time the app can store and show: whole milliseconds, a couple of days inside what
+ * a date can hold so that the day after it still exists.
+ */
+const isTime = (value: unknown) => Number.isInteger(value) && Math.abs(value as number) < 8.64e15 - 2 * DAY;
+
+/**
  * Calendar text and files come from outside, so nothing in them is taken on trust:
  * every field is checked and cut to a sane length. Null for an event that cannot be used.
  */
 function clean(event: ImportedEvent): ImportedEvent | null {
-  const { sourceId, startsAt, endsAt, url } = event;
+  const { sourceId, url } = event;
   if (typeof sourceId !== 'string' || sourceId === '') return null;
-  if (!Number.isFinite(startsAt) || !Number.isFinite(endsAt)) return null;
+  if (!isTime(event.startsAt) || !isTime(event.endsAt)) return null;
+  const allDay = event.allDay === true;
+  // An all-day event is whole days, as the database keeps it, and at least one of
+  // them: some calendars give the same date as its start and its end.
+  const startsAt = allDay ? dayStart(event.startsAt) : event.startsAt;
+  const endsAt = allDay ? Math.max(dayStart(event.endsAt), dayStart(startsAt, 1)) : event.endsAt;
   return {
     sourceId,
     title: cut(event.title, 500).trim() || 'Untitled event',
     startsAt,
     endsAt: Math.max(endsAt, startsAt),
-    allDay: event.allDay === true,
+    allDay,
     locationText: cut(event.locationText, 500),
     host: cut(event.host, 500),
     // Only a web link is kept, whole or not at all: the app offers to open it.

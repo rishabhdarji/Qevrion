@@ -1,7 +1,9 @@
 import type { ImportedEvent, ImportScope } from '../types';
+import { startOfDay } from './dates';
 import { planImport, type ExistingEvent } from './importPlan';
 
-// Times here are plain numbers, so nothing depends on a time zone.
+// Times here are plain numbers, or days built on the phone's own clock, so every
+// expectation holds in any time zone.
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -58,15 +60,31 @@ describe('what comes in is cleaned first', () => {
         incoming('a', { startsAt: NaN }),
         incoming('b', { endsAt: Infinity }),
         incoming('c', { startsAt: '5' as unknown as number }),
+        // Neither of these could be stored: half a millisecond, and past the last date there is.
+        incoming('d', { startsAt: start + 0.5 }),
+        incoming('e', { endsAt: 8.64e15 }),
         incoming(''),
       ],
       ics,
     );
-    expect(plan).toEqual({ ...nothing, result: counts(0, 0, 0, 4) });
+    expect(plan).toEqual({ ...nothing, result: counts(0, 0, 0, 6) });
   });
 
   it('never lets an event end before it starts', () => {
     expect(cleaned({ endsAt: start - HOUR })).toMatchObject({ startsAt: start, endsAt: start });
+  });
+
+  it('keeps an all-day event to whole days, and to at least one', () => {
+    const first = startOfDay(2026, 9, 31);
+    const next = startOfDay(2026, 10, 1);
+    // As some calendars give a single day: the same date, or its last second.
+    expect(cleaned({ allDay: true, startsAt: first, endsAt: first })).toMatchObject({ startsAt: first, endsAt: next });
+    expect(cleaned({ allDay: true, startsAt: first + 9 * HOUR, endsAt: next - 1000 })).toMatchObject({
+      startsAt: first,
+      endsAt: next,
+    });
+    const third = startOfDay(2026, 10, 2);
+    expect(cleaned({ allDay: true, startsAt: first, endsAt: third })).toMatchObject({ startsAt: first, endsAt: third });
   });
 
   it('trims the title, and gives a name to an event without one', () => {
