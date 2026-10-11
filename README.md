@@ -15,7 +15,7 @@ and a camera view that walks you to the door.
 </div>
 
 > [!NOTE]
-> **Early days.** Qevrion is being built in the open, one round at a time. Rounds 0 to 2 are done and eight more follow. Today you can add, edit and delete events by hand; they are stored on the phone, and the countdown to the next one, search, filters and the archive all work on them. Nothing is imported yet, there are no reminders, and the map and AR Walk are mock-ups. Everything under "What it will do" is the plan, not what is in the code yet. [STATUS.md](STATUS.md) always says what actually works.
+> **Early days.** Qevrion is being built in the open, one round at a time. Rounds 0 to 2 are done and eight more follow. Today you can add, edit and delete events by hand, each with its own photo; they are stored on the phone, and the countdown to the next one, search, filters and the archive all work on them. Nothing is imported yet, there are no reminders, and the map and AR Walk are mock-ups. Everything under "What it will do" is the plan, not what is in the code yet. [STATUS.md](STATUS.md) always says what actually works.
 
 ## Why
 
