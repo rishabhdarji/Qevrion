@@ -30,13 +30,15 @@ const EMPTY: Record<Filter, { title: string; body: string }> = {
 
 type HeaderProps = {
   total: number;
+  /** Whether any upcoming events overlap, which puts a red dot on that chip. */
+  conflicts: boolean;
   query: string;
   onQuery: (query: string) => void;
   filter: Filter;
   onFilter: (filter: Filter) => void;
 };
 
-function HomeHeader({ total, query, onQuery, filter, onFilter }: HeaderProps) {
+function HomeHeader({ total, conflicts, query, onQuery, filter, onFilter }: HeaderProps) {
   const router = useRouter();
   const [focused, setFocused] = useState(false);
 
@@ -95,7 +97,9 @@ function HomeHeader({ total, query, onQuery, filter, onFilter }: HeaderProps) {
             key={name}
             label={name}
             selected={filter === name}
-            dot={name === 'Has conflicts' && filter !== name ? 'destructive' : undefined}
+            dot={
+              name === 'Has conflicts' && conflicts && filter !== name ? 'destructive' : undefined
+            }
             onPress={() => onFilter(name)}
           />
         ))}
@@ -115,7 +119,8 @@ export default function Upcoming() {
   const now = useEventClock(events);
 
   const items = buildHomeItems(events, now, query, filter);
-  const total = events.filter((event) => event.endsAt > now).length;
+  const upcoming = events.filter((event) => event.endsAt > now);
+  const total = upcoming.length;
   const browsing = filter === 'All' && query.trim() === '';
 
   const open = (event: QevrionEvent) =>
@@ -152,6 +157,7 @@ export default function Upcoming() {
         ListHeaderComponent={
           <HomeHeader
             total={total}
+            conflicts={upcoming.some((event) => event.hasConflict)}
             query={query}
             onQuery={setQuery}
             filter={filter}

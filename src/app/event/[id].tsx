@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -44,6 +45,8 @@ export default function EventDetail() {
   }
 
   const navigate = () => router.push({ pathname: '/navigate/[id]', params: { id: event.id } });
+  // Only when there is a Partiful link to open; a mention in the description is not one.
+  const partifulUrl = event.url?.includes('partiful.com') ? event.url : null;
   const lastDay = event.endsAt - 1;
   const severalDays = event.allDay && dayStart(lastDay) > event.startsAt;
 
@@ -127,9 +130,13 @@ export default function EventDetail() {
           </>
         ) : null}
 
-        {event.isPartiful ? (
+        {partifulUrl ? (
           <View style={styles.partiful}>
-            <SecondaryButton label="Open in Partiful" />
+            <SecondaryButton
+              label="Open in Partiful"
+              accessibilityHint="Opens the event's page"
+              onPress={() => Linking.openURL(partifulUrl).catch(() => {})}
+            />
           </View>
         ) : null}
 

@@ -114,7 +114,8 @@ export function makeSampleEvents(now: number): EventFields[] {
     const partiful = i % 5 < 2;
     return {
       sourceId: `sample:${i + 1}`,
-      title: `${THEMES[i % THEMES.length]} ${KINDS[Math.floor(i / THEMES.length)]}`,
+      // Twelve themes by ten kinds, stepped so neighbours differ and no pair repeats.
+      title: `${THEMES[i % 12]} ${KINDS[(Math.floor(i / 12) + 3 * (i % 12)) % 10]}`,
       allDay: false,
       locationText: VENUES[(i * 3) % VENUES.length],
       host: HOSTS[(i * 5) % HOSTS.length],
