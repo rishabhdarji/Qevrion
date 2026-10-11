@@ -1,3 +1,6 @@
+/** Whether the address has been looked up yet, and whether a place was found for it. */
+export type GeocodeStatus = 'pending' | 'located' | 'notFound';
+
 // Field names follow SPEC section 7. The database (src/data/db.ts) stores every field
 // in the spec; this is the part of an event the screens read.
 export type QevrionEvent = {
@@ -13,6 +16,10 @@ export type QevrionEvent = {
   endsAt: number;
   allDay: boolean;
   locationText: string;
+  /** Where `locationText` is on the map. Null until it has been found. */
+  lat: number | null;
+  lng: number | null;
+  geocodeStatus: GeocodeStatus;
   host: string;
   description: string;
   url: string | null;
@@ -21,6 +28,8 @@ export type QevrionEvent = {
   keyDetails: string[];
   /** Where the event's own photo is, ready to show. Null when it has none. */
   photo: string | null;
+  /** An imported event that its calendar no longer has. Kept, and shown as removed. */
+  removedFromSource: boolean;
 
   // Worked out when events are loaded (src/data/events.ts), not stored.
   isSample: boolean;
@@ -40,6 +49,23 @@ export type EventFields = Pick<
   description?: string;
   keyDetails?: string[];
 };
+
+/** An event as a calendar or an .ics file gives it. Times follow QevrionEvent's rules. */
+export type ImportedEvent = { sourceId: string } & Pick<
+  QevrionEvent,
+  'title' | 'startsAt' | 'endsAt' | 'allDay' | 'locationText' | 'host' | 'url' | 'description'
+>;
+
+/**
+ * What an import covered, which decides what may be called gone from the calendar.
+ * `present` is every `sourceId` the calendars returned between `from` and `to`, before
+ * any filtering, so an event that was only filtered out is never marked as removed.
+ */
+export type ImportScope =
+  | { source: 'ics' }
+  | { source: 'calendar'; calendarIds: string[]; from: number; to: number; present: string[] };
+
+export type ImportResult = { added: number; updated: number; unchanged: number; skipped: number };
 
 /** SPEC section 7, Settings. The route key is in secure storage, not here. */
 export type Settings = {

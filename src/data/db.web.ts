@@ -78,6 +78,11 @@ export const saveEvent: typeof Phone.saveEvent = (fields, id) => {
     description,
     keyDetails: old?.keyDetails ?? fields.keyDetails ?? [],
     isPartiful: /partiful\.com/i.test(`${fields.url} ${description}`),
+    // Nothing is looked up on a map in the preview.
+    lat: null,
+    lng: null,
+    geocodeStatus: 'pending',
+    removedFromSource: old?.removedFromSource ?? false,
   };
   events = [...events.filter((event) => event.id !== saved.id), saved];
 };

@@ -86,18 +86,20 @@ export type StoredEvent = Omit<QevrionEvent, 'isSample' | 'cover' | 'hasConflict
   sourceId: string | null;
 };
 
-type EventRow = Omit<StoredEvent, 'allDay' | 'isPartiful' | 'keyDetails'> & {
+type EventRow = Omit<StoredEvent, 'allDay' | 'isPartiful' | 'keyDetails' | 'removedFromSource'> & {
   allDay: number;
   isPartiful: number;
   keyDetails: string;
+  removedFromSource: number;
 };
 
 /** Every event, in no particular order. All-day dates come back as this phone's days. */
 export function listEvents(): StoredEvent[] {
   return db()
     .getAllSync<EventRow>(
-      `SELECT id, source, sourceId, title, startsAt, endsAt, allDay, locationText, url, host,
-        description, isPartiful, notes, keyDetails, photo
+      `SELECT id, source, sourceId, title, startsAt, endsAt, allDay, locationText, lat, lng,
+        geocodeStatus, url, host, description, isPartiful, notes, keyDetails, photo,
+        removedFromSource
       FROM events`,
     )
     .map((row) => {
@@ -109,6 +111,7 @@ export function listEvents(): StoredEvent[] {
         endsAt: allDay ? allDayToLocal(row.endsAt) : row.endsAt,
         isPartiful: row.isPartiful === 1,
         keyDetails: JSON.parse(row.keyDetails) as string[],
+        removedFromSource: row.removedFromSource === 1,
       };
     });
 }
