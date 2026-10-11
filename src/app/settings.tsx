@@ -9,9 +9,20 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
+import {
+  deleteAllData,
+  insertSampleEvents,
+  removeSampleEvents,
+  useEvents,
+} from '@/data/events';
+import { SAMPLE_COUNT } from '@/data/sampleEvents';
+import { confirmDestructive } from '@/lib/confirm';
+import { tap } from '@/lib/haptics';
 import { colors, space } from '@/theme';
 
 const REPO_URL = 'https://github.com/rishabhdarji/Qevrion';
+
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
 function Value({ children }: { children: string }) {
   return (
@@ -21,11 +32,13 @@ function Value({ children }: { children: string }) {
   );
 }
 
-// Settings. Rows are laid out in Round 1; each group becomes real in the round that
-// builds its feature (import 3, route key 4, reminders 6).
+// Settings. Data and Developer work; the other groups become real in the round that
+// builds their feature (import 3, route key 4, reminders 6).
 export default function Settings() {
   const router = useRouter();
   const version = Constants.expoConfig?.version ?? '';
+  const events = useEvents();
+  const samples = events.filter((event) => event.isSample).length;
 
   return (
     <Screen glow>
@@ -59,7 +72,19 @@ export default function Settings() {
 
       <SectionLabel style={styles.groupLabel}>Data</SectionLabel>
       <Card padded={false}>
-        <ListRow title="Delete all data" titleColor="destructive" />
+        <ListRow
+          title="Delete all data"
+          titleColor="destructive"
+          subtitle={`${count(events.length, 'event')} on this phone`}
+          onPress={() =>
+            confirmDestructive(
+              'Delete all data?',
+              'Every event and setting is removed from this phone. This cannot be undone.',
+              'Delete everything',
+              deleteAllData,
+            )
+          }
+        />
       </Card>
 
       <SectionLabel style={styles.groupLabel}>About</SectionLabel>
@@ -76,8 +101,32 @@ export default function Settings() {
       <SectionLabel style={styles.groupLabel}>Developer</SectionLabel>
       <Card padded={false}>
         <ListRow
+          title={`Insert ${SAMPLE_COUNT} sample events`}
+          subtitle={
+            samples > 0
+              ? `${count(samples, 'sample')} in the app. Tap for a fresh set.`
+              : 'Invented events, each labelled Sample'
+          }
+          onPress={() => {
+            tap();
+            insertSampleEvents();
+          }}
+        />
+        {samples > 0 ? (
+          <ListRow
+            title="Remove sample events"
+            subtitle="Your own events stay"
+            divider
+            onPress={() => {
+              tap();
+              removeSampleEvents();
+            }}
+          />
+        ) : null}
+        <ListRow
           title="Component gallery"
           subtitle="Every building block on one page"
+          divider
           onPress={() => router.push('/gallery')}
         />
       </Card>

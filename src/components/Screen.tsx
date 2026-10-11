@@ -81,6 +81,8 @@ export function Screen({
           }
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          // Keeps the field being typed in clear of the keyboard.
+          automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
           {children}

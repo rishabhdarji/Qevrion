@@ -3,17 +3,22 @@ import { Inter_300Light } from '@expo-google-fonts/inter/300Light';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { reloadAppAsync } from 'expo';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 
 import { colors } from '@/theme';
 
 // Keep the launch screen up until the fonts are ready, so text never flashes in a
 // fallback face.
 SplashScreen.preventAutoHideAsync();
+
+const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+const startedIn = timeZone();
 
 export default function RootLayout() {
   // The keys are the font family names used in src/theme.ts.
@@ -28,6 +33,16 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded || error) SplashScreen.hideAsync();
   }, [loaded, error]);
+
+  useEffect(() => {
+    // ponytail: every time on screen was worked out in the zone the app started in.
+    // If the phone has changed zone since, start again rather than show stale times.
+    // It drops the open screen; the upgrade is to keep the zone in state.
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && timeZone() !== startedIn) reloadAppAsync();
+    });
+    return () => subscription.remove();
+  }, []);
 
   // If a font fails to load the app still opens, in the system font.
   if (!loaded && !error) return null;

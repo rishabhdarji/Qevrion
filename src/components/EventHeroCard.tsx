@@ -1,7 +1,7 @@
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { formatCountdown, useNow } from '@/lib/countdown';
-import { formatWhen } from '@/lib/dates';
+import { formatEventWhen } from '@/lib/dates';
 import { colors, fonts, radius, space } from '@/theme';
 import type { QevrionEvent } from '@/types';
 
@@ -42,7 +42,7 @@ export function EventHeroCard({ event, onPress }: Props) {
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`Next event${event.isSample ? ', sample' : ''}: ${event.title}, ${formatWhen(event.startsAt)}, ${event.locationText}`}
+      accessibilityLabel={`Next event${event.isSample ? ', sample' : ''}: ${[event.title, formatEventWhen(event), event.locationText].filter(Boolean).join(', ')}`}
       accessibilityHint="Opens the event"
       pressedScale={0.985}
       style={[styles.card, { minHeight }]}
@@ -59,11 +59,13 @@ export function EventHeroCard({ event, onPress }: Props) {
         </Txt>
         <View>
           <Txt variant="bodySmall" numberOfLines={1}>
-            {formatWhen(event.startsAt)}
+            {formatEventWhen(event)}
           </Txt>
-          <Txt variant="bodySmall" color="textSecondary" numberOfLines={1}>
-            {event.locationText}
-          </Txt>
+          {event.locationText ? (
+            <Txt variant="bodySmall" color="textSecondary" numberOfLines={1}>
+              {event.locationText}
+            </Txt>
+          ) : null}
         </View>
       </View>
     </PressableScale>

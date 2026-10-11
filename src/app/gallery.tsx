@@ -16,8 +16,9 @@ import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionLabel } from '@/components/SectionLabel';
 import { StatGrid } from '@/components/StatGrid';
 import { Txt } from '@/components/Txt';
-import { useEvents } from '@/data/events';
-import { colors, radius, space, type, type ColorName, type TypeName } from '@/theme';
+import { makeSampleEvents } from '@/data/sampleEvents';
+import { colors, covers, radius, space, type, type ColorName, type TypeName } from '@/theme';
+import type { QevrionEvent } from '@/types';
 
 const SWATCHES: ColorName[] = [
   'background',
@@ -46,11 +47,25 @@ const TYPE_SAMPLES: Partial<Record<TypeName, string>> = {
 // Opened once, when the gallery mounts, so the hero below visibly counts down to "Now".
 const openedAt = Date.now();
 
+// Its own invented events, so the gallery looks the same whatever is in the database.
+const upcoming: QevrionEvent[] = makeSampleEvents(openedAt)
+  .slice(8, 12)
+  .map((fields, index) => ({
+    description: '',
+    keyDetails: [],
+    ...fields,
+    id: `gallery-${index}`,
+    source: 'manual',
+    isPartiful: false,
+    isSample: true,
+    cover: Object.values(covers)[index],
+    hasConflict: false,
+  }));
+
 // Every building block on one page, reached from Settings, for reviewing the look.
 export default function Gallery() {
   const [chip, setChip] = useState('All');
   const [selected, setSelected] = useState(0);
-  const upcoming = useEvents().filter((event) => event.endsAt > openedAt);
   // Stress cases: a start close enough to watch tick down to "Now", and a long title.
   const soon = { ...upcoming[0], id: 'gallery-soon', startsAt: openedAt + 90_000 };
   const longTitle = {

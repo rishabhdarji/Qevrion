@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,18 +17,22 @@ import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
 import { useEvent } from '@/data/events';
-import { formatDay, formatTime } from '@/lib/dates';
+import { dayStart, formatDay, formatTime } from '@/lib/dates';
 import { colors, radius, size, space } from '@/theme';
 
 const CHECKLIST = ['Reply to the host', 'Sort out a lift home', 'Pick up something to bring'];
 
-// Event detail. Laid out in Round 1; notes, checklist, weather and key details
-// become real in Round 7.
+// Event detail. Notes are edited in the form for now; the checklist, weather and key
+// details become real in Round 7.
 export default function EventDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const event = useEvent(id);
+  const live = useEvent(id);
+  // Holds on to the event once it is deleted, so this screen does not flash
+  // "not found" while it slides away.
+  const [event, setEvent] = useState(live);
+  if (live && live !== event) setEvent(live);
 
   if (!event) {
     return (
@@ -39,9 +44,15 @@ export default function EventDetail() {
   }
 
   const navigate = () => router.push({ pathname: '/navigate/[id]', params: { id: event.id } });
+  const lastDay = event.endsAt - 1;
+  const severalDays = event.allDay && dayStart(lastDay) > event.startsAt;
 
   return (
-    <Screen scroll="bleed" footer={<PrimaryButton label="Navigate" onPress={navigate} />}>
+    <Screen
+      scroll="bleed"
+      // There is nowhere to navigate to without an address.
+      footer={event.locationText ? <PrimaryButton label="Navigate" onPress={navigate} /> : undefined}
+    >
       <View style={[styles.cover, { paddingTop: insets.top + space[2] }]}>
         <EventCover colors={event.cover} />
         <View style={styles.coverBar}>
@@ -67,7 +78,7 @@ export default function EventDetail() {
           <View style={styles.warning} accessible accessibilityRole="alert">
             <Icon name="warning" size={18} color={colors.destructive} />
             <Txt variant="bodySmall" style={styles.warningText}>
-              Overlaps with another event that evening.
+              Overlaps with another event.
             </Txt>
           </View>
         ) : null}
@@ -75,17 +86,27 @@ export default function EventDetail() {
         <Card padded={false}>
           <ListRow
             icon="calendar"
-            title={formatDay(event.startsAt)}
-            subtitle={`${formatTime(event.startsAt)} to ${formatTime(event.endsAt)}`}
+            title={
+              severalDays
+                ? `${formatDay(event.startsAt)} to ${formatDay(lastDay)}`
+                : formatDay(event.startsAt)
+            }
+            subtitle={
+              event.allDay
+                ? 'All day'
+                : `${formatTime(event.startsAt)} to ${formatTime(event.endsAt)}`
+            }
           />
-          <ListRow
-            icon="pin"
-            title={event.locationText}
-            subtitle="Walking route"
-            divider
-            onPress={navigate}
-          />
-          <ListRow icon="person" title={event.host} subtitle="Host" divider />
+          {event.locationText ? (
+            <ListRow
+              icon="pin"
+              title={event.locationText}
+              subtitle="Walking route"
+              divider
+              onPress={navigate}
+            />
+          ) : null}
+          {event.host ? <ListRow icon="person" title={event.host} subtitle="Host" divider /> : null}
         </Card>
 
         {event.keyDetails.length > 0 ? (
@@ -99,8 +120,12 @@ export default function EventDetail() {
           </>
         ) : null}
 
-        <SectionLabel style={styles.label}>About</SectionLabel>
-        <Txt color="textSecondary">{event.description}</Txt>
+        {event.description ? (
+          <>
+            <SectionLabel style={styles.label}>About</SectionLabel>
+            <Txt color="textSecondary">{event.description}</Txt>
+          </>
+        ) : null}
 
         {event.isPartiful ? (
           <View style={styles.partiful}>
@@ -110,15 +135,35 @@ export default function EventDetail() {
 
         <SectionLabel style={styles.label}>My notes</SectionLabel>
         <Card>
-          <Txt color="textTertiary">Notes you write here stay on this phone.</Txt>
+          {event.notes ? (
+            <Txt>{event.notes}</Txt>
+          ) : (
+            <Txt color="textTertiary">
+              Nothing yet. Tap Edit to add notes; they stay on this phone.
+            </Txt>
+          )}
         </Card>
 
-        <SectionLabel style={styles.label}>Prep checklist</SectionLabel>
-        <Card padded={false}>
-          {CHECKLIST.map((item, index) => (
-            <ListRow key={item} title={item} divider={index > 0} right={<View style={styles.checkbox} />} />
-          ))}
-        </Card>
+        {/* ponytail: a picture of the checklist, on sample events only so it is never
+            mistaken for your own list. Round 7 stores a real one per event. */}
+        {event.isSample ? (
+          <>
+            <SectionLabel style={styles.label}>Prep checklist</SectionLabel>
+            <Card padded={false}>
+              {CHECKLIST.map((item, index) => (
+                <ListRow
+                  key={item}
+                  title={item}
+                  divider={index > 0}
+                  right={<View style={styles.checkbox} />}
+                />
+              ))}
+            </Card>
+            <Txt variant="caption" color="textTertiary" style={styles.note}>
+              A sample list. Your own checklists arrive in a later build.
+            </Txt>
+          </>
+        ) : null}
       </View>
     </Screen>
   );
@@ -172,6 +217,10 @@ const styles = StyleSheet.create({
   },
   partiful: {
     marginTop: space[5],
+  },
+  note: {
+    marginTop: space[3],
+    marginHorizontal: space[2],
   },
   checkbox: {
     width: 22,

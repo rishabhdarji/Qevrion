@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { formatDay, formatTime } from '@/lib/dates';
+import { formatDay, formatEventTime, formatMonthShort } from '@/lib/dates';
 import { colors, radius, size, space } from '@/theme';
 import type { QevrionEvent } from '@/types';
 
@@ -21,21 +21,22 @@ export const EVENT_ROW_TEXT_INSET = size.thumb + space[3];
 // One event in a list: a date tile in the cover colour, serif title, time and venue.
 // Plain views only, so a long list stays cheap to draw.
 export function EventRow({ event, muted = false, onPress }: Props) {
-  const date = new Date(event.startsAt);
+  // A hand-typed event may have no venue.
+  const detail = [formatEventTime(event), event.locationText].filter(Boolean);
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`${event.title}, ${formatDay(event.startsAt)} at ${formatTime(event.startsAt)}, ${event.locationText}${event.isSample ? ', sample data' : ''}`}
+      accessibilityLabel={`${[event.title, formatDay(event.startsAt), ...detail].join(', ')}${event.isSample ? ', sample data' : ''}`}
       pressedScale={0.985}
       style={styles.row}
       onPress={onPress ? () => onPress(event) : undefined}
     >
       <View style={[styles.tile, { backgroundColor: event.cover[0] }, muted && styles.mutedTile]}>
         <Txt variant="rowTitle" maxFontSizeMultiplier={1.2}>
-          {date.getDate()}
+          {new Date(event.startsAt).getDate()}
         </Txt>
         <Txt variant="badge" maxFontSizeMultiplier={1.2}>
-          {date.toLocaleDateString(undefined, { month: 'short' })}
+          {formatMonthShort(event.startsAt)}
         </Txt>
       </View>
       <View style={styles.text}>
@@ -51,7 +52,7 @@ export function EventRow({ event, muted = false, onPress }: Props) {
           {event.isSample ? <SampleBadge /> : null}
         </View>
         <Txt variant="bodySmall" color="textSecondary" numberOfLines={1}>
-          {formatTime(event.startsAt)} · {event.locationText}
+          {detail.join(' · ')}
         </Txt>
       </View>
     </PressableScale>

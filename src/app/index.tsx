@@ -1,21 +1,25 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { QevrionMark } from '@/components/QevrionMark';
+import { getSettings } from '@/data/db';
 import { colors } from '@/theme';
 
 const HOLD_MS = 900;
 
+// Once onboarding has been seen, the app opens straight on Home.
+export default function Index() {
+  return getSettings().onboardingDone ? <Redirect href="/upcoming" /> : <Splash />;
+}
+
 // Splash: the mark alone on near-black, then on to onboarding.
-export default function Splash() {
+function Splash() {
   const router = useRouter();
   const { width } = useWindowDimensions();
 
   useEffect(() => {
-    // ponytail: always goes to onboarding, so it shows on every cold start. Round 2
-    // stores `onboardingDone` in the database and skips straight to Home.
     const id = setTimeout(() => router.replace('/onboarding'), HOLD_MS);
     return () => clearTimeout(id);
   }, [router]);
