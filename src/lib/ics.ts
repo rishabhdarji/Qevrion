@@ -1,33 +1,42 @@
 import ICAL from 'ical.js';
 
 import type { ImportedEvent } from '../types';
-import { startOfDay } from './dates';
+import { dayStart, startOfDay } from './dates';
 
 // Reads a calendar file (.ics) into events the importer takes (src/lib/importPlan.ts).
 //
 // The file comes from outside, so nothing in it is trusted. A file that is not a
 // calendar is refused with a message a screen can show; an event that cannot be read
-// is skipped and counted, and never stops the rest. ical.js does the parsing. What is
-// added here is what the app needs on top of it: every time as a moment on this phone,
-// repeating events laid out one occurrence at a time, and a limit on all of it.
+// is skipped and counted, and never stops the rest.
+//
+// ical.js does the parsing and is kept to that. Two things it can be made to do never
+// finish on a file written to that end: laying out a repeating event, and working out
+// a time zone from the rules in the file. So repeating events are left out and counted
+// (the iPhone's own calendar hands them over already laid out), times are read here
+// as they are written, and a zone defined in the file is only given to ical.js once
+// its rules have been checked.
 
-const MAX_CHARS = 5_000_000;
-const MAX_EVENTS = 5000;
-/** Occurrences taken from one repeating event. */
-const MAX_REPEATS = 500;
-// ponytail: ical.js can only walk a repeating event from its first occurrence, so a
-// daily event that began years ago takes thousands of steps to reach the dates asked
-// for, all of it while the app waits. After this long, repeating events still to be
-// laid out are skipped and counted. Lay them out off the main thread, or skip ahead by
-// arithmetic, if real files reach it.
-const MAX_REPEAT_MS = 3000;
+const MAX_CHARS = 2_000_000;
+const MAX_EVENTS = 2000;
+/** What makes an entry a repeating event, or one changed occurrence of one. */
+const REPEATS = ['rrule', 'rdate', 'recurrence-id'];
+/** ical.js lays a zone out to this many years past today, whatever it is asked. */
+const ZONE_YEARS_AHEAD = 5;
+// Laying a zone out costs ical.js a step for each rule, for each year since the rule
+// began, and a little to start each rule however recent. This is what all the zones in
+// a file may cost between them: two of Outlook's, which begin in 1601.
+const MAX_ZONE_STEPS = 2000;
+const RULE_START_STEPS = 25;
+/** No zone needs a rule older than Outlook's. */
+const FIRST_RULE_YEAR = 1601;
+
+type Wall = readonly [year: number, month: number, day: number, hour: number, minute: number, second: number];
+/** The moment a zone the file defines shows a time on its clocks, if the zone can be used. */
+type FileZones = (tzid: string, wall: Wall) => number | undefined;
 
 const text = (value: unknown) => (typeof value === 'string' ? value : '');
-const iso = (ms: number) => new Date(ms).toISOString();
-const uidOf = (vevent: ICAL.Component) => text(vevent.getFirstPropertyValue('uid'));
-const zoneOf = (vevent: ICAL.Component, name: string) => vevent.getFirstProperty(name)?.getParameter('tzid');
-const isCancelled = (vevent: ICAL.Component) =>
-  text(vevent.getFirstPropertyValue('status')).toUpperCase() === 'CANCELLED';
+/** A date or a time exactly as the file has it, in the form ical.js keeps: 2026-10-17T19:00:00Z. */
+const written = (line: ICAL.Property | null) => text(line?.jCal[3]);
 
 // Built once per zone: making a formatter is far dearer than using one.
 const zoneClocks = new Map<string, Intl.DateTimeFormat>();
@@ -70,160 +79,178 @@ function inZone(timeZone: string, wall: number): number | undefined {
   }
 }
 
-/** The moment a time in the file stands for. `tzid` is the zone its line names, if any. */
-function toMs(time: ICAL.Time, tzid: unknown): number {
-  // A date with no time is that day on this phone, whatever zone the phone is in.
-  if (time.isDate) return startOfDay(time.year, time.month - 1, time.day);
-  // UTC, or a zone the file itself defines: ical.js knows the exact moment.
-  if (time.zone !== ICAL.Timezone.localTimezone) return time.toJSDate().getTime();
-  const wall = [time.year, time.month - 1, time.day, time.hour, time.minute, time.second] as const;
-  // A zone the file names but does not define. ical.js would read the time on this
-  // phone's clock, which is wrong anywhere else, so the phone's own knowledge of the
-  // zone is used. With no zone, or one the phone does not know, it is this phone's clock.
-  const zoned = typeof tzid === 'string' ? inZone(tzid, Date.UTC(...wall)) : undefined;
-  return zoned ?? new Date(...wall).getTime();
+/** The one kind of rule a clock change needs: every year, on one numbered weekday of one month. */
+function isClockChange(rule: ICAL.Recur): boolean {
+  const { BYMONTH, BYDAY, ...others } = rule.parts;
+  return (
+    rule.freq === 'YEARLY' &&
+    rule.interval === 1 &&
+    Object.keys(others).length === 0 &&
+    BYMONTH?.length === 1 &&
+    BYDAY?.length === 1 &&
+    // The second Sunday, the last Sunday: never "every Sunday", or the 53rd.
+    /^-?[1-5][A-Z]{2}$/.test(BYDAY[0])
+  );
 }
 
 /**
- * Whether a repeat rule is one ical.js can be trusted with. For a rule that steps by
- * the day or the week it tries one date after another until the rule's conditions
- * are met, with no limit: given conditions that are never met, such as a 30th of
- * February, it would not come back and the app would freeze. Only rules whose
- * conditions always come round are let through. No invitation needs the others.
+ * Whether ical.js may be given a zone the file defines. To say what the zone's clocks
+ * read it walks every rule in it, year by year, with no limit of its own: a rule that
+ * repeats by the minute, or asks for a 30th of February, never comes back, and the app
+ * freezes. So every rule has to be an ordinary clock change, and the walk has to fit
+ * in what is left of the file's allowance, `steps`.
  */
-function canExpand(rule: ICAL.Recur): boolean {
-  const { freq, parts } = rule;
-  if (freq === 'MONTHLY' || freq === 'YEARLY') return true;
-  if (freq !== 'DAILY' && freq !== 'WEEKLY') return false;
-  if (parts.BYMONTHDAY || parts.BYYEARDAY || parts.BYWEEKNO) return false;
-  // "MO" comes round every week. "2MO", the second Monday, only means something in a
-  // month or a year.
-  return freq === 'WEEKLY' || (parts.BYDAY ?? []).every((day) => /^[A-Z]{2}$/.test(day));
+function isPlainZone(vtimezone: ICAL.Component, steps: { left: number }, lastYear: number): boolean {
+  try {
+    let cost = 0;
+    for (const part of vtimezone.getAllSubcomponents()) {
+      // In anything but these two, ical.js goes looking through the file for a zone.
+      if (part.name !== 'standard' && part.name !== 'daylight') return false;
+      const rules = part.getAllProperties('rrule');
+      if (!rules.every((rule) => isClockChange(rule.getFirstValue() as ICAL.Recur))) return false;
+      const began = Number(/^\d{4}/.exec(written(part.getFirstProperty('dtstart')))?.[0]);
+      if (!(began >= FIRST_RULE_YEAR)) return false;
+      cost += rules.length * Math.max(RULE_START_STEPS, lastYear - began);
+    }
+    if (cost > steps.left) return false;
+    steps.left -= cost;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-/** One event, or one occurrence of a repeating one, as the importer takes it. */
-function imported(item: ICAL.Event, sourceId: string, start: ICAL.Time, end: ICAL.Time): ImportedEvent {
-  const vevent = item.component;
-  const startZone = zoneOf(vevent, 'dtstart');
-  return {
-    sourceId,
-    title: text(item.summary),
-    startsAt: toMs(start, startZone),
-    // A date's end is the day after its last day, which is how the app holds it too.
-    endsAt: toMs(end, zoneOf(vevent, 'dtend') ?? startZone),
-    allDay: start.isDate,
-    locationText: text(item.location),
-    // The organiser's name only. What follows it in the file is an email address,
-    // which is not kept.
-    host: text(vevent.getFirstProperty('organizer')?.getParameter('cn')),
-    url: text(vevent.getFirstPropertyValue('url')) || null,
-    description: text(item.description),
+/** Reads the zones one calendar defines. Nothing is looked at until a zone is asked for. */
+function fileZones(calendar: ICAL.Component, steps: { left: number }): FileZones {
+  let defined: Map<string, ICAL.Component> | undefined;
+  const usable = new Map<string, ICAL.Timezone | null>();
+  return (tzid, wall) => {
+    // ponytail: ical.js lays a zone out once, to a few years from now, and would start
+    // again for every later time it met. So a time further ahead than that, in a zone
+    // only the file defines, is read on this phone's clock. Lay such a zone out here,
+    // by arithmetic, if that ever matters.
+    const lastYear = new Date().getFullYear() + ZONE_YEARS_AHEAD;
+    if (wall[0] > lastYear) return undefined;
+    if (!usable.has(tzid)) {
+      // Found by name here, once. ical.js would search the file again for every time.
+      defined ??= new Map(
+        calendar.getAllSubcomponents('vtimezone').map((zone) => [text(zone.getFirstPropertyValue('tzid')), zone]),
+      );
+      const vtimezone = defined.get(tzid);
+      const plain = vtimezone !== undefined && isPlainZone(vtimezone, steps, lastYear);
+      usable.set(tzid, plain ? new ICAL.Timezone({ component: vtimezone, tzid }) : null);
+    }
+    const zone = usable.get(tzid);
+    if (!zone) return undefined;
+    const [year, month, day, hour, minute, second] = wall;
+    const offset = zone.utcOffset(
+      ICAL.Time.fromData({ year, month: month + 1, day, hour, minute, second, isDate: false }),
+    );
+    if (zone.changes.length === 0) {
+      // A definition with nothing in it says nothing, and ical.js would walk it again
+      // for every time it was asked about.
+      usable.set(tzid, null);
+      return undefined;
+    }
+    return Date.UTC(...wall) - offset * 1000;
   };
 }
 
 /**
- * The events in a calendar file. One-off events are all read, whatever their date.
- * A repeating event gives one event per occurrence that falls between `from` and `to`.
- * `skipped` counts what was left out: cancelled events, events that could not be read,
- * and anything past the limits above. Throws, with a message fit to show, when the
- * text is not a calendar at all.
+ * The moment a DTSTART or DTEND line stands for, and whether it is a date with no time.
+ * The line is read as written and worked out here; ical.js's own reading of it would go
+ * to the zones in the file unasked.
  */
-export function parseIcs(
-  fileText: string,
-  window: { from: number; to: number },
-): { events: ImportedEvent[]; skipped: number } {
+function readTime(line: ICAL.Property | null, zones: FileZones): { at: number; allDay: boolean } {
+  const match = /^(\d{4})-(\d\d)-(\d\d)(?:T(\d\d):(\d\d):(\d\d)(Z)?)?$/.exec(written(line));
+  if (!match) throw new Error('Not a date or a time.');
+  const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number);
+  // A date with no time is that day on this phone, whatever zone the phone is in.
+  if (match[4] === undefined) return { at: startOfDay(year, month - 1, day), allDay: true };
+  const wall = [year, month - 1, day, hour, minute, second] as const;
+  if (match[7]) return { at: Date.UTC(...wall), allDay: false };
+  // A named zone is the phone's to work out first. If the phone does not know the
+  // name, the file's own definition is used when it is plain enough to be safe. With
+  // no zone at all, or no way of working one out, the time is on this phone's clock.
+  const tzid = line?.getParameter('tzid');
+  const zoned =
+    typeof tzid === 'string' ? (inZone(tzid, Date.UTC(...wall)) ?? zones(tzid, wall)) : undefined;
+  return { at: zoned ?? new Date(...wall).getTime(), allDay: false };
+}
+
+/** One entry of the file as the importer takes it. Throws when it has no usable start. */
+function imported(vevent: ICAL.Component, zones: FileZones): ImportedEvent {
+  const start = readTime(vevent.getFirstProperty('dtstart'), zones);
+  const endLine = vevent.getFirstProperty('dtend');
+  const duration = vevent.getFirstPropertyValue('duration');
+  // An end, or failing that a length. A date's end is the day after its last day,
+  // which is how the app holds it too; with neither, a date is one day and a time has
+  // no length.
+  let endsAt = start.allDay ? dayStart(start.at, 1) : start.at;
+  if (endLine) endsAt = readTime(endLine, zones).at;
+  else if (duration instanceof ICAL.Duration) {
+    const seconds = duration.toSeconds();
+    endsAt = start.allDay ? dayStart(start.at, Math.round(seconds / 86_400)) : start.at + seconds * 1000;
+  }
+  const title = text(vevent.getFirstPropertyValue('summary'));
+  const name = text(vevent.getFirstProperty('organizer')?.getParameter('cn'));
+  return {
+    // Without a UID, the title and start stand in, so the same file read twice still
+    // gives the same key.
+    sourceId: text(vevent.getFirstPropertyValue('uid')) || `${title}|${new Date(start.at).toISOString()}`,
+    title,
+    startsAt: start.at,
+    endsAt,
+    allDay: start.allDay,
+    locationText: text(vevent.getFirstPropertyValue('location')),
+    // The organiser's name only, and not when the "name" is itself an email address:
+    // nobody's address is kept.
+    host: name.includes('@') ? '' : name,
+    url: text(vevent.getFirstPropertyValue('url')) || null,
+    description: text(vevent.getFirstPropertyValue('description')),
+  };
+}
+
+/**
+ * The events in a calendar file, whatever their date. `repeating` counts the repeating
+ * events and changed occurrences that were left out. `skipped` counts everything else
+ * that was: cancelled events, events that could not be read, and anything past the
+ * limit. Throws, with a message fit to show, when the text is not a calendar at all.
+ */
+export function parseIcs(fileText: string): { events: ImportedEvent[]; skipped: number; repeating: number } {
   if (fileText.length > MAX_CHARS) throw new Error('This file is too big to import.');
   // Some programs put an invisible mark or blank lines before the first line.
   const body = fileText.trimStart();
   if (!/^BEGIN:VCALENDAR/i.test(body)) throw new Error('This file is not a calendar.');
-  let vevents: ICAL.Component[];
+  let calendars: ICAL.Component[];
   try {
     const parsed = ICAL.parse(body);
     // One calendar comes back on its own, several as a list.
-    const calendars: unknown[][] = typeof parsed[0] === 'string' ? [parsed] : parsed;
-    vevents = calendars.flatMap((calendar) => new ICAL.Component(calendar).getAllSubcomponents('vevent'));
+    const each: unknown[][] = typeof parsed[0] === 'string' ? [parsed] : parsed;
+    calendars = each.map((calendar) => new ICAL.Component(calendar));
   } catch {
     throw new Error('This calendar file is damaged and could not be read.');
   }
 
-  // A changed occurrence of a repeating event is an entry of its own in the file, with
-  // the event's UID. They are handed to ical.js with the event they belong to.
-  const repeating = new Set<string>();
-  const changes = new Map<string, ICAL.Component[]>();
-  for (const vevent of vevents) {
-    const uid = uidOf(vevent);
-    if (!uid) continue;
-    if (!vevent.hasProperty('recurrence-id')) repeating.add(uid);
-    else if (changes.has(uid)) changes.get(uid)!.push(vevent);
-    else changes.set(uid, [vevent]);
-  }
-
   const events: ImportedEvent[] = [];
   let skipped = 0;
-  const deadline = Date.now() + MAX_REPEAT_MS;
-
-  for (const vevent of vevents) {
-    if (events.length >= MAX_EVENTS) {
-      skipped++;
-      continue;
-    }
-    try {
-      const uid = uidOf(vevent);
-      const isChange = vevent.hasProperty('recurrence-id');
-      // Comes out with the occurrences of the event it belongs to.
-      if (isChange && repeating.has(uid)) continue;
-      if (isCancelled(vevent)) {
+  let repeating = 0;
+  const zoneSteps = { left: MAX_ZONE_STEPS };
+  for (const calendar of calendars) {
+    const zones = fileZones(calendar, zoneSteps);
+    for (const vevent of calendar.getAllSubcomponents('vevent')) {
+      if (events.length >= MAX_EVENTS) {
         skipped++;
         continue;
       }
-      // Told which changes are its own, ical.js does not go looking through the file.
-      const event = new ICAL.Event(vevent, { exceptions: (!isChange && changes.get(uid)) || [] });
-      const startZone = zoneOf(vevent, 'dtstart');
-      // Without a UID, the title and start stand in, so the same file read twice
-      // still gives the same key.
-      const key = uid || `${text(event.summary)}|${iso(toMs(event.startDate, startZone))}`;
-
-      if (!event.isRecurring()) {
-        // A changed occurrence whose event is not in the file is kept as one event.
-        const occurrence = isChange ? `|${iso(toMs(event.recurrenceId, zoneOf(vevent, 'recurrence-id')))}` : '';
-        events.push(imported(event, key + occurrence, event.startDate, event.endDate));
-        continue;
-      }
-
-      const rules = vevent.getAllProperties('rrule').map((rule) => rule.getFirstValue() as ICAL.Recur);
-      if (Date.now() > deadline || !rules.every(canExpand)) {
+      try {
+        if (REPEATS.some((name) => vevent.hasProperty(name))) repeating++;
+        else if (text(vevent.getFirstPropertyValue('status')).toUpperCase() === 'CANCELLED') skipped++;
+        else events.push(imported(vevent, zones));
+      } catch {
         skipped++;
-        continue;
       }
-      const expansion = event.iterator();
-      let taken = 0;
-      for (let next = expansion.next(); next; next = expansion.next()) {
-        // Occurrences come in order, so the first one past the window ends the walk.
-        const original = toMs(next, startZone);
-        if (original > window.to) break;
-        // Out of time or out of room: what is left of this event is skipped.
-        if (Date.now() > deadline || taken >= MAX_REPEATS || events.length >= MAX_EVENTS) {
-          skipped++;
-          break;
-        }
-        // The occurrence as it stands, which a change may have moved or rewritten.
-        // Its key is its original start, so it stays the same event when moved again.
-        // ponytail: for a whole day, or a time with no zone, that start is worked out
-        // on this phone's clock, so the key changes if the phone changes zone before
-        // the same file is read again. Key those by the date as written when that bites.
-        const { item, startDate, endDate } = event.getOccurrenceDetails(next);
-        const occurrence = imported(item, `${key}|${iso(original)}`, startDate, endDate);
-        if (occurrence.startsAt > window.to || occurrence.endsAt < window.from) continue;
-        if (isCancelled(item.component)) {
-          skipped++;
-          continue;
-        }
-        events.push(occurrence);
-        taken++;
-      }
-    } catch {
-      skipped++;
     }
   }
-  return { events, skipped };
+  return { events, skipped, repeating };
 }
