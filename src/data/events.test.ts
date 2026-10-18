@@ -1,4 +1,4 @@
-import type { EventFields, ImportedEvent } from '../types';
+import type { EventFields, ImportedEvent, ImportScope } from '../types';
 import {
   deleteAllData,
   getEvents,
@@ -182,6 +182,33 @@ describe('events from the store', () => {
 
     removeSampleEvents();
     expect(getEvents()).toHaveLength(1);
+  });
+
+  it('let an event its calendar no longer has clash with nothing', () => {
+    const calendar = (present: string[]): ImportScope => ({
+      source: 'calendar',
+      calendarIds: ['home'],
+      from: evening - 30 * 24 * HOUR,
+      to: evening + 300 * 24 * HOUR,
+      present,
+    });
+    const dinnerAtHome = { ...invite, sourceId: 'home|dinner' };
+    const party = {
+      ...invite,
+      sourceId: 'home|party',
+      title: 'Party',
+      startsAt: evening + HOUR,
+      endsAt: evening + 3 * HOUR,
+    };
+    importEvents([dinnerAtHome, party], calendar(['home|dinner', 'home|party']));
+    expect(getEvents().map((event) => event.hasConflict)).toEqual([true, true]);
+
+    importEvents([dinnerAtHome], calendar(['home|dinner']));
+    const shown = getEvents().map((event) => [event.title, event.removedFromSource, event.hasConflict]);
+    expect(shown).toEqual([
+      ['Dinner', false, false],
+      ['Party', true, false],
+    ]);
   });
 
   it('show where an address is as soon as it is known', () => {

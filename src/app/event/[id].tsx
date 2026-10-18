@@ -21,8 +21,16 @@ import { useEvent } from '@/data/events';
 import { formatEventSpan } from '@/lib/dates';
 import { isPartifulLink, webLink } from '@/lib/links';
 import { colors, radius, size, space } from '@/theme';
+import type { GeocodeStatus } from '@/types';
 
 const CHECKLIST = ['Reply to the host', 'Sort out a lift home', 'Pick up something to bring'];
+
+/** Whether the address has been found on the map yet (src/lib/geocode.ts). */
+const ON_MAP: Record<GeocodeStatus, string> = {
+  located: 'On the map',
+  notFound: 'Not found on the map',
+  pending: 'Not on the map yet',
+};
 
 // Event detail. Notes are edited in the form for now; the checklist, weather and key
 // details become real in Round 7.
@@ -76,6 +84,19 @@ export default function EventDetail() {
       </View>
 
       <View style={styles.body}>
+        {event.removedFromSource ? (
+          <View style={styles.warning} accessible accessibilityRole="alert">
+            <Icon name="warning" size={18} color={colors.destructive} />
+            <View style={styles.warningText}>
+              <Txt variant="bodySmall">Removed from calendar</Txt>
+              <Txt variant="bodySmall" color="textSecondary">
+                It is no longer in your iPhone Calendar. It stays here with your notes; to delete
+                it, tap Edit.
+              </Txt>
+            </View>
+          </View>
+        ) : null}
+
         {event.hasConflict ? (
           <View style={styles.warning} accessible accessibilityRole="alert">
             <Icon name="warning" size={18} color={colors.destructive} />
@@ -92,6 +113,8 @@ export default function EventDetail() {
               icon="pin"
               title={event.locationText}
               subtitle="Walking route"
+              // Sample addresses are invented and never looked up.
+              status={event.isSample ? undefined : ON_MAP[event.geocodeStatus]}
               divider
               onPress={navigate}
             />

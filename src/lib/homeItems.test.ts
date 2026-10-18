@@ -211,6 +211,12 @@ describe('selectNextEvent', () => {
     expect(selectNextEvent(sorted, week.startsAt)).toBeUndefined();
     expect(selectNextEvent([], now)).toBeUndefined();
   });
+
+  it('passes over an event its calendar no longer has, which stays in the list', () => {
+    const gone = { ...soon, removedFromSource: true };
+    expect(selectNextEvent([past, gone, week], now)).toBe(week);
+    expect(home([gone, week])).toEqual(['label:Next up', 'hero:week', 'label:This week', 'row:soon']);
+  });
 });
 
 describe('nextBoundary', () => {

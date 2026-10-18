@@ -21,7 +21,8 @@ const listeners = new Set<() => void>();
 
 function load(): QevrionEvent[] {
   const stored = db.listEvents().sort((a, b) => a.startsAt - b.startsAt);
-  const conflicts = findConflicts(stored);
+  // An event its calendar no longer has is not going ahead, so it clashes with nothing.
+  const conflicts = findConflicts(stored.filter((event) => !event.removedFromSource));
   return stored.map(({ sourceId, photo, ...event }) => ({
     ...event,
     photo: photo ? photoUri(photo) : null,
