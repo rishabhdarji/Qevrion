@@ -315,16 +315,41 @@ describe('importing', () => {
   });
 
   it('keeps a deleted import deleted, and really deletes an event added by hand', () => {
-    sync([invite]);
+    sync([{ ...invite, url: 'https://partiful.com/e/EXAMPLE123' }]);
     saveEvent({ ...dinner, title: 'Lunch' });
-    saveEvent({ ...dinner, photo: 'mine.jpg' }, titled('Dinner').id);
+    saveEvent({ ...dinner, url: 'https://partiful.com/e/EXAMPLE123', photo: 'mine.jpg' }, titled('Dinner').id);
+    setGeocode(invite.locationText, { lat: 51.5, lng: -0.12 });
+    shared.testDatabase!.exec(
+      `UPDATE events SET checklist = '["Wine"]', tags = '["friends"]', reminderOffsets = '[60]',
+        keyDetails = '["Smart casual"]'`,
+    );
+    const [before] = rows().filter((row) => row.title === 'Dinner');
 
     deleteEvent(titled('Lunch').id);
     deleteEvent(titled('Dinner').id);
     expect(listEvents()).toEqual([]);
-    // The import is still stored, out of sight and without its photo.
-    expect(rows()).toMatchObject([{ title: 'Dinner', source: 'calendar', photo: null }]);
-    expect(rows()[0].deletedAt).toEqual(expect.any(Number));
+    // The import is still stored, out of sight, with nothing kept but what tells it apart.
+    expect(rows()).toEqual([
+      {
+        ...before,
+        deletedAt: expect.any(Number),
+        description: '',
+        locationText: '',
+        host: '',
+        url: null,
+        photo: null,
+        notes: '',
+        lat: null,
+        lng: null,
+        geocodeStatus: 'pending',
+        isPartiful: 0,
+        tags: '[]',
+        checklist: '[]',
+        keyDetails: '[]',
+        reminderOffsets: null,
+      },
+    ]);
+    expect(before).toMatchObject({ notes: 'Bring wine', photo: 'mine.jpg', geocodeStatus: 'located', isPartiful: 1 });
 
     expect(sync([{ ...invite, title: 'Dinner, moved' }])).toEqual(counts(0, 0, 0, 1));
     expect(sync([])).toEqual(counts(0, 0, 0, 0));
@@ -333,6 +358,45 @@ describe('importing', () => {
 
     deleteAllData();
     expect(rows()).toEqual([]);
+  });
+
+  it('never lets a deleted import take in a new event that looks like it', () => {
+    sync([invite]);
+    deleteEvent(listEvents()[0].id);
+    expect(sync([{ ...invite, sourceId: 'home|2' }])).toEqual(counts(1, 0, 0, 0));
+    expect(listEvents()).toMatchObject([{ sourceId: 'home|2', title: 'Dinner' }]);
+  });
+
+  it('leaves an event from a calendar that was not read with its own notes', () => {
+    sync([{ ...invite, sourceId: 'work|1' }], undefined, ['work']);
+    saveEvent({ ...dinner, notes: 'Bring wine' }, listEvents()[0].id);
+
+    // The same title and start turn up in another calendar.
+    expect(sync([{ ...invite, sourceId: 'home|9' }])).toEqual(counts(1, 0, 0, 0));
+    expect(listEvents().map(({ sourceId, notes }) => ({ sourceId, notes })).sort((a, b) => (a.sourceId! < b.sourceId! ? -1 : 1))).toEqual([
+      { sourceId: 'home|9', notes: '' },
+      { sourceId: 'work|1', notes: 'Bring wine' },
+    ]);
+  });
+
+  it('stores text without what the phone cannot keep, so it comes back unchanged', () => {
+    const odd: ImportedEvent = {
+      ...invite,
+      sourceId: 'home|odd\u0000one',
+      title: 'Din\u0000ner\uD83C party\u0007',
+      description: 'Doors at seven.\r\nUpstairs \uDFFF\uD83C\uDF89',
+      host: 'Maya\u001F',
+    };
+    // A second key that only differs after a NUL, as the phone would cut it.
+    const twin = { ...odd, sourceId: 'home|odd\u0000two', title: 'Twin' };
+    expect(sync([odd, twin])).toEqual(counts(2, 0, 0, 0));
+    expect(sync([odd, twin])).toEqual(counts(0, 0, 2, 0));
+    expect(titled('Dinner party')).toMatchObject({
+      sourceId: 'home|oddone',
+      description: 'Doors at seven.\nUpstairs \uD83C\uDF89',
+      host: 'Maya',
+    });
+    expect(titled('Twin').sourceId).toBe('home|oddtwo');
   });
 
   it('finds all-day events unchanged when they come in again, every day of the year', () => {

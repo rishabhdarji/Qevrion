@@ -197,13 +197,20 @@ export function saveEvent(fields: EventFields, id?: string): void {
 }
 
 /**
- * An event added by hand is gone for good. An imported one is kept out of sight,
- * without its photo, so that the next sync does not bring it back.
+ * An event added by hand is gone for good. An imported one is kept out of sight so that
+ * the next sync does not bring it back, and only what tells it apart is kept: its key,
+ * title and times. Everything else, the owner's notes and photo included, is wiped.
  */
 export function deleteEvent(id: string): void {
   // Only one of these finds anything to do.
   db().runSync(`DELETE FROM events WHERE id = ? AND source = 'manual'`, [id]);
-  db().runSync('UPDATE events SET deletedAt = ?, photo = NULL WHERE id = ?', [Date.now(), id]);
+  db().runSync(
+    `UPDATE events SET deletedAt = ?, description = '', locationText = '', host = '', url = NULL,
+      photo = NULL, notes = '', lat = NULL, lng = NULL, geocodeStatus = 'pending', isPartiful = 0,
+      tags = '[]', checklist = '[]', keyDetails = '[]', reminderOffsets = NULL
+    WHERE id = ?`,
+    [Date.now(), id],
+  );
 }
 
 export function deleteSampleEvents(): void {
@@ -271,6 +278,7 @@ export function importEvents(
   // prepare each statement once if a first import ever feels slow.
   // ponytail: lastSyncedAt is only written when a sync adds or changes a row, and
   // nothing reads it yet; stamp every row a sync saw once something needs to know.
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   db().withTransactionSync(() => {
     for (const event of plan.inserts) {
       db().runSync(
@@ -279,11 +287,7 @@ export function importEvents(
         VALUES (lower(hex(randomblob(16))), $source, $sourceId, $title, $startsAt, $endsAt,
           $allDay, $timeZone, $locationText, $url, $host, $description, $isPartiful, $now, $now,
           $now)`,
-        {
-          ...owned(event),
-          $source: scope.source,
-          $timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        },
+        { ...owned(event), $source: scope.source, $timeZone: timeZone },
       );
     }
     for (const { id, event, relocate } of plan.updates) {
@@ -301,16 +305,13 @@ export function importEvents(
           isPartiful = $isPartiful,
           removedFromSource = 0,
           updatedAt = $now,
-          lastSyncedAt = $now
+          lastSyncedAt = $now,
+          lat = CASE WHEN $relocate THEN NULL ELSE lat END,
+          lng = CASE WHEN $relocate THEN NULL ELSE lng END,
+          geocodeStatus = CASE WHEN $relocate THEN 'pending' ELSE geocodeStatus END
         WHERE id = $id`,
-        { ...owned(event), $id: id },
+        { ...owned(event), $id: id, $relocate: relocate ? 1 : 0 },
       );
-      if (relocate) {
-        db().runSync(
-          `UPDATE events SET lat = NULL, lng = NULL, geocodeStatus = 'pending' WHERE id = ?`,
-          [id],
-        );
-      }
     }
     for (const { id, sourceId } of plan.rekeys) {
       db().runSync('UPDATE events SET sourceId = ? WHERE id = ?', [sourceId, id]);
