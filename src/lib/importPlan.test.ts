@@ -106,12 +106,40 @@ describe('what comes in is cleaned first', () => {
     expect(cleaned({ description: `${'d'.repeat(19_998)}🎉 and more` }).description).toHaveLength(20_000);
   });
 
-  it('keeps a web link and drops anything else', () => {
+  it('keeps a plain web link and drops anything else', () => {
     expect(cleaned({ url: 'https://partiful.com/e/EXAMPLE123' }).url).toBe('https://partiful.com/e/EXAMPLE123');
     expect(cleaned({ url: 'HTTP://example.com/a' }).url).toBe('HTTP://example.com/a');
     expect(cleaned({ url: 'javascript:alert(1)' }).url).toBeNull();
     expect(cleaned({ url: 'example.com/a' }).url).toBeNull();
+    expect(cleaned({ url: 'https://partiful.com@evil.example/e' }).url).toBeNull();
     expect(cleaned({ url: `https://example.com/${'a'.repeat(2000)}` }).url).toBeNull();
+  });
+
+  it('drops what text cannot be stored with, and keeps what it can', () => {
+    const event = cleaned({
+      sourceId: 'uid-1\u0000-two',
+      title: 'Din\u0000ner\u0007 \uD83C party',
+      host: 'Maya \uDFFF\u001F\u007FOkafor',
+      description: 'Line one\r\nLine two\t\u00E9 \uD83C\uDF89',
+    });
+    expect(event).toMatchObject({
+      sourceId: 'uid-1-two',
+      title: 'Dinner  party',
+      host: 'Maya Okafor',
+      // Tabs and new lines stay, and so does a whole emoji.
+      description: 'Line one\nLine two\t\u00E9 \uD83C\uDF89',
+    });
+  });
+
+  it('skips an event whose key is too long, or nothing once cleaned', () => {
+    const plan = planImport([], [incoming('k'.repeat(501)), incoming('\u0000\u0001'), incoming('k'.repeat(500))], ics);
+    expect(plan.inserts.map((event) => event.sourceId)).toEqual(['k'.repeat(500)]);
+    expect(plan.result).toEqual(counts(1, 0, 0, 2));
+  });
+
+  it('keeps two keys apart that differ only after a NUL', () => {
+    const plan = planImport([], [incoming('uid\u0000a'), incoming('uid\u0000b', { title: 'Other' })], ics);
+    expect(plan.inserts.map((event) => event.sourceId)).toEqual(['uida', 'uidb']);
   });
 
   it('reads anything that is not text as empty', () => {
@@ -202,11 +230,23 @@ describe('matching what is stored', () => {
       ...nothing,
       result: counts(0, 0, 0, 1),
     });
-    expect(planImport([gone], [incoming('new')], ics)).toEqual({
+  });
+
+  it('never lets a deleted event take in a new one that looks like it', () => {
+    expect(planImport([stored('a', { deleted: true })], [incoming('new')], ics)).toEqual({
       ...nothing,
-      rekeys: [{ id: 'row-a', sourceId: 'new' }],
-      result: counts(0, 0, 0, 1),
+      inserts: [incoming('new')],
+      result: counts(1, 0, 0, 0),
     });
+  });
+
+  it('never gives the event of a calendar that was not read to one that was', () => {
+    // Same title and start, in another calendar: the owner's notes stay where they are.
+    const plan = planImport([stored('work|1')], [incoming('home|9')], calendar(['home|9']));
+    expect(plan).toEqual({ ...nothing, inserts: [incoming('home|9')], result: counts(1, 0, 0, 0) });
+    // Once both calendars are read, it is the same event under a new key.
+    const both = planImport([stored('work|1')], [incoming('home|9')], calendar(['home|9'], ['home', 'work']));
+    expect(both.rekeys).toEqual([{ id: 'row-work|1', sourceId: 'home|9' }]);
   });
 
   it('updates an event marked as removed that is back, so the mark is cleared', () => {

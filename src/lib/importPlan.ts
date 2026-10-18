@@ -1,5 +1,6 @@
 import type { ImportedEvent, ImportResult, ImportScope } from '../types';
 import { dayStart } from './dates';
+import { webLink } from './links';
 
 // The rules of an import, worked out without a database: given what is stored and what
 // a calendar or a file has just handed over, what to add, change, re-key and mark as
@@ -43,13 +44,17 @@ export type ImportPlan = {
   result: ImportResult;
 };
 
-/** Text cut to `max` characters, never through the middle of an emoji. Anything else is ''. */
-function cut(value: unknown, max: number): string {
-  if (typeof value !== 'string') return '';
-  // Half an emoji does not survive being stored, and the event would then look
-  // changed on every import.
-  return value.slice(0, /[\uD800-\uDBFF]/.test(value.charAt(max - 1)) ? max - 1 : max);
-}
+// A pair of surrogates (an emoji, say) is matched first and kept. Half of one on its
+// own, or a control character other than a tab or a new line, is dropped: neither
+// survives being stored on the phone (its SQLite ends text at a NUL), so an event
+// holding one would look changed on every import, and a NUL in a key would let two
+// different keys be stored as one.
+const UNSTORABLE =
+  /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u0000-\u0008\u000B-\u001F\u007F\uD800-\uDFFF]/g;
+const storable = (value: string) => value.replace(UNSTORABLE, (found) => (found.length === 2 ? found : ''));
+
+/** Text as it can be stored, cut to `max` characters. Anything that is not text is ''. */
+const cut = (value: unknown, max: number) => (typeof value === 'string' ? storable(value.slice(0, max)) : '');
 
 /**
  * A time the app can store and show: whole milliseconds, a couple of days inside what
@@ -62,8 +67,8 @@ const isTime = (value: unknown) => Number.isInteger(value) && Math.abs(value as 
  * every field is checked and cut to a sane length. Null for an event that cannot be used.
  */
 function clean(event: ImportedEvent): ImportedEvent | null {
-  const { sourceId, url } = event;
-  if (typeof sourceId !== 'string' || sourceId === '') return null;
+  const sourceId = typeof event.sourceId === 'string' ? storable(event.sourceId) : '';
+  if (sourceId === '' || sourceId.length > 500) return null;
   if (!isTime(event.startsAt) || !isTime(event.endsAt)) return null;
   const allDay = event.allDay === true;
   // An all-day event is whole days, as the database keeps it, and at least one of
@@ -78,8 +83,8 @@ function clean(event: ImportedEvent): ImportedEvent | null {
     allDay,
     locationText: cut(event.locationText, 500),
     host: cut(event.host, 500),
-    // Only a web link is kept, whole or not at all: the app offers to open it.
-    url: typeof url === 'string' && url.length <= 2000 && /^https?:\/\//i.test(url) ? url : null,
+    // Only a plain web link is kept, whole or not at all: the app offers to open it.
+    url: webLink(event.url),
     description: cut(event.description, 20_000),
   };
 }
@@ -104,14 +109,21 @@ export function planImport(
     else events.set(event.sourceId, event);
   }
 
-  const present = new Set(scope.source === 'calendar' ? scope.present : []);
+  // Cleaned like the keys they are compared with.
+  const present = new Set(scope.source === 'calendar' ? scope.present.map(storable) : []);
+  const calendarIds = scope.source === 'calendar' ? scope.calendarIds.map(storable) : [];
+  /** Whether a stored event came from a calendar this import read. Any event of a file did. */
+  const wasRead = (row: ExistingEvent) =>
+    scope.source !== 'calendar' || calendarIds.some((id) => row.sourceId.startsWith(`${id}|`));
   const byKey = new Map(existing.map((row) => [row.sourceId, row]));
   const matched = new Set<string>();
 
   for (const event of events.values()) {
     // By key first. Failing that, a stored event with the same title and start whose
     // own key the calendar no longer has: the same event under a new id. A row whose
-    // key is still out there belongs to another event, however alike the two look.
+    // key is still out there belongs to another event, however alike the two look; a
+    // row from a calendar that was not read is not this calendar's to give away; and a
+    // deleted row is only ever found by its own key, so it cannot take in a new event.
     // ponytail: an event added by hand and later imported from the calendar is not
     // merged with it; match across sources when that bites.
     // ponytail: one pass over the stored rows per unmatched event, fine for a few
@@ -123,6 +135,8 @@ export function planImport(
           candidate.title === event.title &&
           candidate.startsAt === event.startsAt &&
           candidate.allDay === event.allDay &&
+          !candidate.deleted &&
+          wasRead(candidate) &&
           !matched.has(candidate.id) &&
           !events.has(candidate.sourceId) &&
           !present.has(candidate.sourceId),
@@ -134,16 +148,12 @@ export function planImport(
     }
     matched.add(row.id);
 
-    const rekey = () => {
-      if (row.sourceId !== event.sourceId) plan.rekeys.push({ id: row.id, sourceId: event.sourceId });
-    };
     if (row.deleted) {
       // The owner deleted it, so it stays deleted.
       result.skipped++;
-      rekey();
     } else if (!row.removedFromSource && OWNED.every((key) => row[key] === event[key])) {
       result.unchanged++;
-      rekey();
+      if (row.sourceId !== event.sourceId) plan.rekeys.push({ id: row.id, sourceId: event.sourceId });
     } else {
       // Also clears "removed from calendar" and sets the key the event has now.
       plan.updates.push({ id: row.id, event, relocate: row.locationText !== event.locationText });
@@ -152,7 +162,7 @@ export function planImport(
   }
 
   if (scope.source === 'calendar') {
-    const { calendarIds, from, to } = scope;
+    const { from, to } = scope;
     plan.removed = existing
       .filter(
         (row) =>
@@ -163,7 +173,7 @@ export function planImport(
           // Only a calendar that was read can say an event is gone, and only for the
           // dates it was asked about. A day is kept back at each end, so an event
           // sliding out past the edge of the window is not taken for a removed one.
-          calendarIds.some((id) => row.sourceId.startsWith(`${id}|`)) &&
+          wasRead(row) &&
           row.startsAt < to - DAY &&
           row.endsAt > from + DAY,
       )

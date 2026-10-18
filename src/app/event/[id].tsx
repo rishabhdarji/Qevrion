@@ -19,6 +19,7 @@ import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
 import { useEvent } from '@/data/events';
 import { formatEventSpan } from '@/lib/dates';
+import { isPartifulLink, webLink } from '@/lib/links';
 import { colors, radius, size, space } from '@/theme';
 
 const CHECKLIST = ['Reply to the host', 'Sort out a lift home', 'Pick up something to bring'];
@@ -46,9 +47,10 @@ export default function EventDetail() {
 
   const navigate = () => router.push({ pathname: '/navigate/[id]', params: { id: event.id } });
   const edit = () => router.push({ pathname: '/event/edit', params: { id: event.id } });
-  // Only ordinary web links get a button. Once events are imported a link is text from
-  // outside, and anything else (a phone number, another app's address) is not opened.
-  const url = event.url && /^https?:\/\//i.test(event.url) ? event.url : null;
+  // Only plain web links get a button. Once events are imported a link is text from
+  // outside, and anything else (a phone number, another app's address, a link dressed
+  // up as another) is not opened.
+  const url = webLink(event.url);
   const when = formatEventSpan(event);
 
   return (
@@ -127,7 +129,7 @@ export default function EventDetail() {
         {url ? (
           <View style={styles.partiful}>
             <SecondaryButton
-              label={url.includes('partiful.com') ? 'Open in Partiful' : 'Open link'}
+              label={isPartifulLink(url) ? 'Open in Partiful' : 'Open link'}
               accessibilityHint="Opens the event's page"
               onPress={() => Linking.openURL(url).catch(() => {})}
             />
