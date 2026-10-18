@@ -10,16 +10,20 @@ type Props = {
   label: string;
   onPress?: () => void;
   accessibilityHint?: string;
+  /** Dimmed and does nothing. Say beside it what it is waiting for. */
+  disabled?: boolean;
 };
 
 // The one cream action on a screen. Gives a light haptic tap.
-export function PrimaryButton({ label, onPress, accessibilityHint }: Props) {
+export function PrimaryButton({ label, onPress, accessibilityHint, disabled = false }: Props) {
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      style={styles.button}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      style={[styles.button, disabled && styles.disabled]}
       onPress={() => {
         tap();
         onPress?.();
@@ -40,5 +44,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space[6],
+  },
+  disabled: {
+    opacity: 0.35,
   },
 });

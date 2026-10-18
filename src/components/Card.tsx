@@ -56,6 +56,8 @@ type ListRowProps = {
   right?: ReactNode;
   /** Draws a hairline above the row. Use on every row but the first. */
   divider?: boolean;
+  /** For a row that is ticked or not, so VoiceOver says which. */
+  selected?: boolean;
   onPress?: () => void;
 };
 
@@ -68,6 +70,7 @@ export function ListRow({
   titleColor = 'textPrimary',
   right,
   divider = false,
+  selected,
   onPress,
 }: ListRowProps) {
   const content = (
@@ -101,6 +104,7 @@ export function ListRow({
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={[title, subtitle, status].filter(Boolean).join(', ')}
+      accessibilityState={selected === undefined ? undefined : { selected }}
       style={rowStyle}
       onPress={onPress}
     >
