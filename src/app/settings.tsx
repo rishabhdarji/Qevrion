@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Card, ListRow } from '@/components/Card';
@@ -9,6 +10,7 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
+import { getSettings } from '@/data/db';
 import {
   deleteAllData,
   insertSampleEvents,
@@ -35,13 +37,18 @@ function Value({ children }: { children: string }) {
   );
 }
 
-// Settings. Data and Developer work; the other groups become real in the round that
-// builds their feature (import 3, route key 4, reminders 6).
+// Settings. Import sources, Data and Developer work; the other groups become real in
+// the round that builds their feature (route key 4, reminders 6).
 export default function Settings() {
   const router = useRouter();
   const version = Constants.expoConfig?.version ?? '';
   const events = useEvents();
   const samples = events.filter((event) => event.isSample).length;
+  // Settings are not watched like events are, so this screen is drawn again each time
+  // it is back in front, as it is when the import closes.
+  const [, setShown] = useState(0);
+  useFocusEffect(useCallback(() => setShown((times) => times + 1), []));
+  const calendars = getSettings().importCalendarIds.length;
 
   return (
     <Screen glow>
@@ -51,7 +58,7 @@ export default function Settings() {
       <Card padded={false}>
         <ListRow
           title="iPhone Calendar"
-          status="Not connected"
+          status={calendars > 0 ? count(calendars, 'calendar') : 'Not connected'}
           onPress={() => router.push('/import')}
         />
         <ListRow title="Calendar file" subtitle="Bring in an .ics file" divider onPress={() => router.push('/import')} />
@@ -136,12 +143,6 @@ export default function Settings() {
           subtitle="Every building block on one page"
           divider
           onPress={() => router.push('/gallery')}
-        />
-        <ListRow
-          title="Calendar debug"
-          subtitle="Raw fields of five upcoming events"
-          divider
-          onPress={() => router.push('/debug-calendar')}
         />
       </Card>
 
