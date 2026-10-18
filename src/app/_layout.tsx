@@ -11,6 +11,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
+import { locateVenues } from '@/lib/geocode';
+import { syncCalendars } from '@/lib/sync';
 import { colors } from '@/theme';
 
 // Keep the launch screen up until the fonts are ready, so text never flashes in a
@@ -35,11 +37,21 @@ export default function RootLayout() {
   }, [loaded, error]);
 
   useEffect(() => {
+    // SPEC F2: the chosen calendars are read again every time the app opens, and
+    // addresses still waiting are looked up. Nothing is said if that fails; Home's
+    // pull-to-refresh is where a failure is shown.
+    const refresh = () => {
+      syncCalendars().catch(() => {});
+      locateVenues();
+    };
+    refresh();
     // ponytail: every time on screen was worked out in the zone the app started in.
     // If the phone has changed zone since, start again rather than show stale times.
     // It drops the open screen; the upgrade is to keep the zone in state.
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && timeZone() !== startedIn) reloadAppAsync();
+      if (state !== 'active') return;
+      if (timeZone() !== startedIn) reloadAppAsync();
+      else refresh();
     });
     return () => subscription.remove();
   }, []);

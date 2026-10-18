@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/EmptyState';
 import { EVENT_ROW_TEXT_INSET, EventRow } from '@/components/EventRow';
@@ -9,6 +9,7 @@ import { Txt } from '@/components/Txt';
 import { useEvents } from '@/data/events';
 import { useEventClock } from '@/lib/countdown';
 import { buildArchiveItems, type ListItem } from '@/lib/homeItems';
+import { useSyncRefresh } from '@/lib/sync';
 import { colors, size, space } from '@/theme';
 import type { QevrionEvent } from '@/types';
 
@@ -19,6 +20,7 @@ export default function Archive() {
   const padding = useScreenPadding({ bottomSpace: size.tabBar + space[3] });
   // An event moves in here the moment it ends.
   const now = useEventClock(events);
+  const refresh = useSyncRefresh();
 
   const items = buildArchiveItems(events, now);
   const total = items.filter((item) => item.kind === 'row').length;
@@ -70,6 +72,14 @@ export default function Archive() {
           <EmptyState
             title="Nothing behind you yet"
             body="Events move here once they are over, so you can look back at them."
+          />
+        }
+        refreshControl={
+          // Pushed below the clock, where the top fade would otherwise hide it.
+          <RefreshControl
+            {...refresh}
+            tintColor={colors.textSecondary}
+            progressViewOffset={padding.paddingTop}
           />
         }
         contentContainerStyle={padding}
