@@ -22,6 +22,7 @@ const draft = (patch: Partial<EventDraft> = {}): EventDraft => ({
   url: '',
   notes: '',
   photo: null,
+  place: null,
   ...patch,
 });
 
@@ -68,6 +69,16 @@ describe('draftToFields', () => {
   it('makes a bare address into a link and leaves a full one alone', () => {
     expect(draftToFields(draft({ url: 'partiful.com/e/abc' })).url).toBe('https://partiful.com/e/abc');
     expect(draftToFields(draft({ url: 'http://example.com' })).url).toBe('http://example.com');
+  });
+
+  it('keeps a picked address with where it is, but only while the field still holds it', () => {
+    const place = { full: '350 5th Avenue, New York, NY', lat: 40.7484, lng: -73.9857 };
+    const picked = draftToFields(draft({ locationText: ' 350 5th Avenue, New York, NY ', place }));
+    expect(picked.place).toEqual({ lat: 40.7484, lng: -73.9857 });
+    // Typed over afterwards: the address is looked up again as usual.
+    const changed = draftToFields(draft({ locationText: '350 5th Avenue, Floor 86', place }));
+    expect(changed.place).toBeUndefined();
+    expect(draftToFields(draft({ locationText: '14 Alder Row' })).place).toBeUndefined();
   });
 
   it('saves an all-day event from the start of its first day to the end of its last', () => {

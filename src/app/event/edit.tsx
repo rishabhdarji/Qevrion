@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 
 import { EventCover } from '@/components/EventCover';
+import { Icon } from '@/components/Icon';
 import { Pill } from '@/components/Pill';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
@@ -34,6 +35,8 @@ import {
   type DraftErrors,
   type EventDraft,
 } from '@/lib/eventDraft';
+import { SOURCE_NAME, type Suggestion } from '@/lib/suggest';
+import { useAddressSuggestions } from '@/lib/useAddressSuggestions';
 import { colors, covers, radius, size, space, type } from '@/theme';
 
 function Problem({ children }: { children?: string }) {
@@ -97,6 +100,105 @@ function When({ label, value, dateOnly, error, onChange }: WhenProps) {
         />
       )}
       <Problem>{error}</Problem>
+    </View>
+  );
+}
+
+type WhereProps = {
+  value: string;
+  /** The suggestion picked last, if the field still holds it. */
+  picked: boolean;
+  onChange: (text: string) => void;
+  onPick: (suggestion: Suggestion) => void;
+};
+
+// "Where", with a short list of matching addresses under it while typing. Tapping one
+// fills in the full address and keeps where it is, so it need not be looked up later.
+function WhereField({ value, picked, onChange, onPick }: WhereProps) {
+  // Only after a letter is typed: opening an event to edit it sends nothing.
+  const [typing, setTyping] = useState(false);
+  const { list, source, status } = useAddressSuggestions(value, typing);
+  const credit = `Suggestions from ${SOURCE_NAME[source]}. What you type here is sent there to find addresses.`;
+  const message =
+    status === 'offline'
+      ? 'No suggestions without a connection. Type the address in full; it is found on the map later.'
+      : status === 'failed'
+        ? 'Suggestions are not available right now. Type the address in full.'
+        : status === 'done' && list.length === 0
+          ? 'No matching addresses. Type it in full; it is found on the map when saved.'
+          : null;
+
+  return (
+    <View style={styles.field}>
+      <SectionLabel>Where</SectionLabel>
+      <TextInput
+        value={value}
+        onChangeText={(text) => {
+          setTyping(true);
+          onChange(text);
+        }}
+        // A moment's grace, so a tap on a suggestion still lands as the field lets go.
+        onBlur={() => setTimeout(() => setTyping(false), 250)}
+        placeholder="Venue or address"
+        placeholderTextColor={colors.textTertiary}
+        accessibilityLabel="Where"
+        accessibilityHint="Matching addresses are listed below as you type"
+        returnKeyType="done"
+        autoCorrect={false}
+        textContentType="fullStreetAddress"
+        keyboardAppearance="dark"
+        selectionColor={colors.accent}
+        maxFontSizeMultiplier={1.4}
+        style={styles.input}
+      />
+      {picked ? (
+        <View style={styles.picked}>
+          <Icon name="check" size={14} color={colors.accent} />
+          <Txt variant="caption" color="accent">
+            On the map
+          </Txt>
+        </View>
+      ) : null}
+      {typing && status !== 'idle' ? (
+        <View style={styles.suggestions}>
+          {list.map((item, index) => (
+            <Pressable
+              key={`${item.full}-${index}`}
+              accessibilityRole="button"
+              accessibilityLabel={item.full}
+              accessibilityHint="Fills in this address"
+              style={({ pressed }) => [styles.suggestion, index > 0 && styles.suggestionDivider, pressed && styles.pressed]}
+              onPress={() => {
+                setTyping(false);
+                onPick(item);
+                AccessibilityInfo.announceForAccessibility(`Address chosen: ${item.full}`);
+              }}
+            >
+              <Txt variant="bodySmall" numberOfLines={1}>
+                {item.title}
+              </Txt>
+              {item.detail ? (
+                <Txt variant="caption" color="textSecondary" numberOfLines={2}>
+                  {item.detail}
+                </Txt>
+              ) : null}
+            </Pressable>
+          ))}
+          {status === 'looking' && list.length === 0 ? (
+            <Txt variant="caption" color="textSecondary" style={styles.suggestNote}>
+              Looking…
+            </Txt>
+          ) : null}
+          {message ? (
+            <Txt variant="caption" color="textSecondary" style={styles.suggestNote}>
+              {message}
+            </Txt>
+          ) : null}
+          <Txt variant="caption" color="textTertiary" style={[styles.suggestNote, styles.credit]}>
+            {credit}
+          </Txt>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -260,11 +362,11 @@ export default function EditEvent() {
         onChange={(end) => set({ end })}
       />
 
-      <Field
-        label="Where"
+      <WhereField
         value={draft.locationText}
-        onChangeText={(locationText) => set({ locationText })}
-        placeholder="Venue or address"
+        picked={!!draft.place && draft.place.full === draft.locationText.trim()}
+        onChange={(locationText) => set({ locationText })}
+        onPick={({ full, lat, lng }) => set({ locationText: full, place: { full, lat, lng } })}
       />
       <Field
         label="Host"
@@ -351,5 +453,39 @@ const styles = StyleSheet.create({
   },
   picker: {
     alignSelf: 'flex-start',
+  },
+  picked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[1],
+  },
+  suggestions: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.inner,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    overflow: 'hidden',
+  },
+  suggestion: {
+    minHeight: size.tap,
+    justifyContent: 'center',
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    gap: 2,
+  },
+  suggestionDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  pressed: {
+    backgroundColor: colors.surfaceRaised,
+  },
+  suggestNote: {
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+  },
+  credit: {
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
   },
 });
