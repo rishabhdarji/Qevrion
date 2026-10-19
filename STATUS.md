@@ -106,6 +106,7 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 
 ## Round 4: map and walking route (built, waiting for the owner's check)
 
+- **Confirmed on the iPhone (19 Oct 2026):** the map, the green dot (you), the red dot (the venue) and the route all work. Still to report: the fallback with Wi-Fi and data off, and the address suggestions and their comparison.
 - **Done when (owner's test):** pick an event near you and see a sensible walking route and times; turn off Wi-Fi and data and see the straight line instead of an error; type a street number and name and get the right address to tap.
 - **Before testing:** add the free key (Settings, Navigation, Walking routes key). Without it Navigate shows the straight line by design. To try the fallback with a key set, open an event you have not opened Navigate for yet (a kept route would still show).
 - **Suggestion test:** Settings, Developer, "Compare address suggestions". Type a few real, partly typed addresses near you, press "Share these results" for each, and send them back; the better service becomes the form's.

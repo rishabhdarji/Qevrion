@@ -197,4 +197,6 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 144. **Checked in the desktop preview.** Navigate's straight-line fallback, the key screen, and the form with a simulated Photon answer (the real one is blocked here): the list shows, a tap fills in the address and shows "On the map", and the question carries your rough position. Two things were found and fixed. Tapping a suggestion could close the list before the tap landed; it now waits a moment. When the phone had no recent position the ranking was silently skipped; it now takes a quick rough fix.
 145. **Checks.** Type-check, lint, 302 tests in each of six time zones, and both bundles. The iPhone bundle has none of the preview stand-ins. Expo's doctor passes all but the two checks that need the Expo API, which this network blocks.
 
-**Next:** your check of Round 4 on the iPhone (add the key first), and the suggestion comparison. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).
+146. **First check on the iPhone.** You added the key and opened Navigate: the map, your green dot, the venue's red dot and the route all work.
+
+**Next:** the fallback test (Wi-Fi and data off) and the suggestion comparison. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).
