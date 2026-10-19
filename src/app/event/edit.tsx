@@ -191,6 +191,12 @@ export default function EditEvent() {
           each sync. Your notes and photo stay yours.
         </Txt>
       ) : null}
+      {event?.source === 'ics' ? (
+        <Txt variant="caption" color="textSecondary" style={styles.fromCalendar}>
+          Title, time, place, host and link come from the calendar file and are refreshed if you
+          import it again. Your notes and photo stay yours.
+        </Txt>
+      ) : null}
 
       {/* With no photo yet, a tap anywhere on the banner opens the picker, not only on
           the small button. VoiceOver still lands on the button alone. */}

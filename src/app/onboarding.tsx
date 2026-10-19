@@ -19,7 +19,7 @@ const PAGES = [
   },
   {
     title: 'Bring in\nyour events.',
-    body: 'From your iPhone calendar, including what Partiful adds there, or an .ics file. Nothing leaves your phone.',
+    body: 'From your iPhone calendar, including what Partiful adds there, or an .ics file. Your events stay on your phone; only their addresses go to Apple Maps, to find them on the map.',
     primary: 'Import events',
   },
   {

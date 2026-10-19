@@ -26,6 +26,8 @@ const REPO_URL = 'https://github.com/rishabhdarji/Qevrion';
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 
+const chosenCount = () => getSettings().importCalendarIds.length;
+
 // A row that does something on the spot takes no arrow; an arrow promises another screen.
 const NO_CHEVRON = <View />;
 
@@ -44,11 +46,10 @@ export default function Settings() {
   const version = Constants.expoConfig?.version ?? '';
   const events = useEvents();
   const samples = events.filter((event) => event.isSample).length;
-  // Settings are not watched like events are, so this screen is drawn again each time
-  // it is back in front, as it is when the import closes.
-  const [, setShown] = useState(0);
-  useFocusEffect(useCallback(() => setShown((times) => times + 1), []));
-  const calendars = getSettings().importCalendarIds.length;
+  // Settings are not watched like events are, so the count is read again each time
+  // this screen is back in front, as it is when the import closes.
+  const [calendars, setCalendars] = useState(chosenCount);
+  useFocusEffect(useCallback(() => setCalendars(chosenCount()), []));
 
   return (
     <Screen glow>
@@ -61,7 +62,12 @@ export default function Settings() {
           status={calendars > 0 ? count(calendars, 'calendar') : 'Not connected'}
           onPress={() => router.push('/import')}
         />
-        <ListRow title="Calendar file" subtitle="Bring in an .ics file" divider onPress={() => router.push('/import')} />
+        <ListRow
+          title="Calendar file"
+          subtitle="Bring in an .ics file"
+          divider
+          onPress={() => router.push({ pathname: '/import', params: { source: 'file' } })}
+        />
       </Card>
 
       <SectionLabel style={styles.groupLabel}>Reminders</SectionLabel>
@@ -92,7 +98,10 @@ export default function Settings() {
               'Delete all data?',
               'Every event and setting is removed from this phone, and Qevrion starts again from the welcome screens. This cannot be undone.',
               'Delete everything',
-              deleteAllData,
+              () => {
+                deleteAllData();
+                setCalendars(0);
+              },
             )
           }
         />

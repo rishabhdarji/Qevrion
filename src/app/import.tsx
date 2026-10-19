@@ -2,7 +2,7 @@ import * as Calendar from 'expo-calendar/legacy';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
@@ -69,14 +69,19 @@ const BAR: Record<Stage['step'], number> = {
   result: 2,
 };
 
-type CalendarRow = { id: string; title: string; account: string; events: number; partiful: number };
+/** `events` is null when the events could not be counted; the calendar can still be chosen. */
+type CalendarRow = { id: string; title: string; account: string; events: number | null; partiful: number };
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong.');
+const say = (text: string) => AccessibilityInfo.announceForAccessibility(text);
 const onDate = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
-/** The phone's calendars, each with how many events a sync would find in it. One read for all. */
+/**
+ * The phone's calendars, each with how many events a sync would find in it. One read
+ * for all. If the counting fails the list still comes back, without counts.
+ */
 async function readCalendarList(): Promise<CalendarRow[]> {
   const listed = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
   const rows = new Map(
@@ -86,17 +91,24 @@ async function readCalendarList(): Promise<CalendarRow[]> {
         id: calendar.id,
         title: calendar.title || 'Untitled calendar',
         account: calendar.source?.name ?? '',
-        events: 0,
+        events: null,
         partiful: 0,
       },
     ]),
   );
   if (rows.size === 0) return [];
   const { from, to } = syncWindow();
-  for (const event of await Calendar.getEventsAsync([...rows.keys()], new Date(from), new Date(to))) {
+  let events: Calendar.Event[];
+  try {
+    events = await Calendar.getEventsAsync([...rows.keys()], new Date(from), new Date(to));
+  } catch {
+    return [...rows.values()];
+  }
+  rows.forEach((row) => (row.events = 0));
+  for (const event of events) {
     const row = rows.get(event.calendarId);
     // Counted the way a sync brings them in, so a cancelled event is not.
-    if (!row || !toImported(event)) continue;
+    if (!row || row.events === null || !toImported(event)) continue;
     row.events++;
     if (isPartifulEvent(event)) row.partiful++;
   }
@@ -106,8 +118,12 @@ async function readCalendarList(): Promise<CalendarRow[]> {
 // Import: where the events are, which calendars, then what changed.
 export default function Import() {
   const router = useRouter();
+  // Settings' "Calendar file" row opens this screen with the file already chosen.
+  const params = useLocalSearchParams<{ source?: string }>();
   const [stage, setStage] = useState<Stage>({ step: 'source' });
-  const [source, setSource] = useState(0);
+  const [source, setSource] = useState(params.source === 'file' ? 1 : 0);
+  // Whether calendars were chosen before, so that all of them can be let go of.
+  const [connected] = useState(() => getSettings().importCalendarIds.length > 0);
   // Null while the list is being read.
   const [calendars, setCalendars] = useState<CalendarRow[] | null>(null);
   const [chosen, setChosen] = useState<string[]>([]);
@@ -133,12 +149,19 @@ export default function Import() {
         // The first time, the calendars that hold Partiful events come ticked.
         setChosen(saved.length > 0 ? saved : rows.filter((row) => row.partiful > 0).map((row) => row.id));
         setCalendars(rows);
+        say(`${count(rows.length, 'calendar')} found`);
       },
       (error: unknown) => current && setStage({ step: 'calendars', error: messageOf(error) }),
     );
     return () => {
       current = false;
     };
+  }, [stage]);
+
+  // A problem shown on screen is read out too, since VoiceOver stays where it was.
+  useEffect(() => {
+    if (stage.step === 'calendars' && stage.error) say(stage.error);
+    if (stage.step === 'fileError') say(stage.message);
   }, [stage]);
 
   // After a no, access can only be turned on in Settings. Coming back from there is
@@ -230,6 +253,11 @@ export default function Import() {
     }
   };
 
+  const stopReading = () => {
+    updateSettings({ importCalendarIds: [] });
+    router.back();
+  };
+
   const toggle = (id: string) =>
     setChosen((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
@@ -265,6 +293,16 @@ export default function Import() {
         if (stage.error) return <PrimaryButton label="Try again" onPress={openCalendar} />;
         if (!calendars) return undefined;
         if (calendars.length === 0) return <SecondaryButton label="Back" onPress={back} />;
+        if (chosen.length === 0 && connected) {
+          return (
+            <>
+              <Txt variant="caption" color="textSecondary" style={styles.centered}>
+                Events already brought in stay here.
+              </Txt>
+              <PrimaryButton label="Stop reading calendars" onPress={stopReading} />
+            </>
+          );
+        }
         return (
           <>
             {chosen.length === 0 ? (
@@ -329,7 +367,8 @@ export default function Import() {
           </Txt>
           <Txt color="textSecondary">
             Qevrion reads your iPhone calendar to bring your events in, and reads it again each
-            time you open the app. Nothing leaves your phone.
+            time you open the app. Your events stay on your phone; only their addresses go to
+            Apple Maps, to find them on the map.
           </Txt>
           {IN_EXPO_GO ? (
             <Txt variant="bodySmall" color="textTertiary">
@@ -395,7 +434,9 @@ export default function Import() {
                 <ListRow
                   key={calendar.id}
                   title={calendar.title}
-                  subtitle={[calendar.account, count(calendar.events, 'event')].filter(Boolean).join(' · ')}
+                  subtitle={[calendar.account, calendar.events === null ? '' : count(calendar.events, 'event')]
+                    .filter(Boolean)
+                    .join(' · ')}
                   status={calendar.partiful > 0 ? `${calendar.partiful} from Partiful` : undefined}
                   divider={index > 0}
                   selected={selected}
@@ -413,8 +454,7 @@ export default function Import() {
               subtitle={`30 days back to 12 months ahead: ${onDate(from)} to ${onDate(to)}`}
             />
             <ListRow
-              title="Only Partiful events"
-              subtitle="Events with a partiful.com link"
+              title="Only events with a partiful.com link"
               divider
               right={
                 <Switch
@@ -506,7 +546,7 @@ function Result({ result, repeating }: { result: ImportResult; repeating: number
         ) : null}
         {added + updated > 0 ? (
           <Txt variant="bodySmall" color="textSecondary">
-            Places are being found on the map in the background.
+            Places are being found on the map while Qevrion is open.
           </Txt>
         ) : null}
       </View>
