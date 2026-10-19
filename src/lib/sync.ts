@@ -1,5 +1,6 @@
 import * as Calendar from 'expo-calendar/legacy';
 import { File } from 'expo-file-system';
+import * as Linking from 'expo-linking';
 import { useState } from 'react';
 import { Alert, Platform } from 'react-native';
 
@@ -31,6 +32,8 @@ export function syncWindow(now = Date.now()): { from: number; to: number } {
 const NOTHING: ImportResult = { added: 0, updated: 0, unchanged: 0, skipped: 0 };
 
 let running: Promise<ImportResult | null> | undefined;
+/** The one fresh read that forced syncs arriving during a sync all wait for. */
+let forcedNext: Promise<ImportResult | null> | undefined;
 let finishedAt = -Infinity;
 
 /** Reads the chosen calendars once. Null when there is nothing it may or can read. */
@@ -47,13 +50,15 @@ async function readCalendars(): Promise<ImportResult | null> {
   if (calendarIds.length === 0) return null;
   const { from, to } = syncWindow();
   const events = await Calendar.getEventsAsync(calendarIds, new Date(from), new Date(to));
-  // A calendar that answers with nothing at all is taken to be still loading, not
-  // emptied, so it cannot mark every event "Removed from calendar".
+  // A calendar that answers with no events at all is taken to be still loading, not
+  // emptied, so it counts as not read and cannot mark its events "Removed from calendar".
   // ponytail: so a calendar that really is emptied never marks its events removed;
   // compare with what the calendar held last time if that ever matters.
-  if (events.length === 0) return NOTHING;
+  const answering = new Set(events.map((event) => event.calendarId));
+  const answered = calendarIds.filter((id) => answering.has(id));
+  if (answered.length === 0) return NOTHING;
   const { incoming, present, filtered } = collect(events, onlyPartifulLinks);
-  const result = importEvents(incoming, { source: 'calendar', calendarIds, from, to, present });
+  const result = importEvents(incoming, { source: 'calendar', calendarIds: answered, from, to, present });
   locateVenues();
   return { ...result, skipped: result.skipped + filtered };
 }
@@ -68,8 +73,12 @@ export function syncCalendars({ force = false } = {}): Promise<ImportResult | nu
   if (running) {
     // One at a time. A forced sync waits for the one under way and then reads
     // afresh: it may come straight after new calendars were chosen.
+    if (!force) return running;
     const again = () => syncCalendars({ force });
-    return force ? running.then(again, again) : running;
+    forcedNext ??= running.then(again, again).finally(() => {
+      forcedNext = undefined;
+    });
+    return forcedNext;
   }
   if (!force && Date.now() - finishedAt < QUIET_MS) return Promise.resolve(null);
   running = readCalendars().finally(() => {
@@ -85,18 +94,31 @@ export function syncCalendars({ force = false } = {}): Promise<ImportResult | nu
  */
 export async function importFile(uri: string): Promise<ImportResult & { repeating: number }> {
   const file = new File(uri);
-  // Measured before reading, so a huge file is never loaded into memory.
-  if (file.size > MAX_FILE_BYTES) throw new Error('This file is too big to import.');
-  let fileText: string;
   try {
-    fileText = await file.text();
-  } catch {
-    throw new Error('This file could not be read.');
+    // Measured before reading, so a huge file is never loaded into memory.
+    if (file.size > MAX_FILE_BYTES) throw new Error('This file is too big to import.');
+    let fileText: string;
+    try {
+      fileText = await file.text();
+    } catch {
+      throw new Error('This file could not be read.');
+    }
+    const { events, skipped, repeating } = parseIcs(fileText);
+    const result = importEvents(events, { source: 'ics' });
+    locateVenues();
+    return { ...result, skipped: result.skipped + skipped, repeating };
+  } finally {
+    // The picker's copy holds someone's events; it is not kept once read.
+    try {
+      file.delete();
+    } catch {}
   }
-  const { events, skipped, repeating } = parseIcs(fileText);
-  const result = importEvents(events, { source: 'ics' });
-  locateVenues();
-  return { ...result, skipped: result.skipped + skipped, repeating };
+}
+
+/** Whether calendars are chosen but calendar access has since been turned off. */
+async function accessWentOff(): Promise<boolean> {
+  if (Platform.OS === 'web' || getSettings().importCalendarIds.length === 0) return false;
+  return !(await Calendar.getCalendarPermissionsAsync()).granted;
 }
 
 /** Pull-to-refresh for a list: re-reads the calendars, and says so if that fails. */
@@ -105,6 +127,17 @@ export function useSyncRefresh(): { refreshing: boolean; onRefresh: () => void }
   const onRefresh = () => {
     setRefreshing(true);
     syncCalendars({ force: true })
+      .then(async (result) => {
+        if (result || !(await accessWentOff())) return;
+        Alert.alert(
+          'Calendar access is off',
+          'Turn it on in Settings, under Calendars, to bring your events in again.',
+          [
+            { text: 'OK', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+          ],
+        );
+      })
       .catch((error: unknown) =>
         Alert.alert('Could not refresh', error instanceof Error ? error.message : String(error)),
       )

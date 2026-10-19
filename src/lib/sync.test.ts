@@ -21,10 +21,13 @@ jest.mock('../data/events', () => ({ importEvents: jest.fn() }));
 jest.mock('./geocode', () => ({ locateVenues: jest.fn() }));
 
 const files: Record<string, { size: number; text: string | Error }> = {};
+/** The picked files whose cached copy was deleted. */
+const deleted: string[] = [];
 jest.mock('expo-file-system', () => ({
   File: class {
     size: number;
     text: () => Promise<string>;
+    delete: () => void;
     constructor(uri: string) {
       const { size, text } = files[uri];
       this.size = size;
@@ -32,6 +35,11 @@ jest.mock('expo-file-system', () => ({
         if (text instanceof Error) throw text;
         return text;
       });
+      this.delete = () => {
+        deleted.push(uri);
+        // A copy that cannot be deleted must not turn a good import into a failure.
+        if (uri.includes('stuck')) throw new Error('EPERM');
+      };
     }
   },
 }));
@@ -113,6 +121,13 @@ describe('syncCalendars', () => {
     expect(store).not.toHaveBeenCalled();
   });
 
+  it('counts a calendar that answers with no events as not read, so it marks nothing removed', async () => {
+    chosen(['home', 'work']);
+    await syncCalendars();
+    expect(read.mock.calls[0][0]).toEqual(['home', 'work']);
+    expect(store.mock.calls[0][1]).toMatchObject({ calendarIds: ['home'] });
+  });
+
   it('runs one at a time, rests for a minute unless forced, and hands errors back', async () => {
     const first = syncCalendars();
     expect(syncCalendars()).toBe(first);
@@ -125,6 +140,15 @@ describe('syncCalendars', () => {
 
     read.mockRejectedValue(new Error('The calendar could not be read.'));
     await expect(syncCalendars({ force: true })).rejects.toThrow('The calendar could not be read.');
+  });
+
+  it('gives every forced sync that arrives during one the same single fresh read', async () => {
+    const background = syncCalendars();
+    const first = syncCalendars({ force: true });
+    const second = syncCalendars({ force: true });
+    expect(second).toBe(first);
+    await Promise.all([background, first, second]);
+    expect(read).toHaveBeenCalledTimes(2);
   });
 
   it('reads again after the sync under way when forced, to pick up new choices', async () => {
@@ -163,6 +187,15 @@ describe('importFile', () => {
     expect(store.mock.calls[0][0].map((item) => item.sourceId)).toEqual(['dinner@example.com']);
     expect(store.mock.calls[0][1]).toEqual({ source: 'ics' });
     expect(locateVenues).toHaveBeenCalled();
+    expect(deleted).toContain('file:///cache/party.ics');
+  });
+
+  it('deletes the cached copy whatever happens, and ignores a copy it cannot delete', async () => {
+    files['file:///cache/stuck.ics'] = { size: calendar.length, text: calendar };
+    expect(await importFile('file:///cache/stuck.ics')).toEqual({ ...counts, repeating: 1 });
+    files['file:///cache/broken.ics'] = { size: 10, text: 'not a calendar' };
+    await expect(importFile('file:///cache/broken.ics')).rejects.toThrow('This file is not a calendar.');
+    expect(deleted).toEqual(expect.arrayContaining(['file:///cache/stuck.ics', 'file:///cache/broken.ics']));
   });
 
   it('refuses a file over 2 MB before reading it', async () => {
