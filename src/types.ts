@@ -44,6 +44,11 @@ export type EventFields = Pick<
 > & {
   /** A photo to show: the one the event already has, or one just picked. */
   photo?: string | null;
+  /**
+   * Where `locationText` is, when it is already known because it was picked from the
+   * address suggestions. Left out, the address is looked up as usual.
+   */
+  place?: { lat: number; lng: number };
   // Written when the event is created and left alone by later edits.
   sourceId?: string;
   description?: string;

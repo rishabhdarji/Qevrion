@@ -5,8 +5,10 @@ import {
   deleteAllData,
   deleteEvent,
   deleteSampleEvents,
+  findRoute,
   getSettings,
   importEvents,
+  keepRoute,
   listEvents,
   MIGRATIONS,
   nextPendingAddress,
@@ -464,6 +466,31 @@ describe('where an event is', () => {
     expect(nextPendingAddress(now)).toEqual({ address: null, reused: 0 });
   });
 
+  it('keeps the place of an address picked from the suggestions, and never looks it up', () => {
+    saveEvent({ ...at('Dinner', '350 5th Avenue, New York'), place: { lat: 40.7484, lng: -73.9857 } });
+    expect(titled('Dinner')).toMatchObject({ lat: 40.7484, lng: -73.9857, geocodeStatus: 'located' });
+    expect(nextPendingAddress(now).address).toBeNull();
+  });
+
+  it('takes a newly picked place over the one found before, and keeps it while the address stays', () => {
+    saveEvent(at('Dinner', '14 Alder Row'));
+    setGeocode('14 Alder Row', place);
+    const { id } = titled('Dinner');
+    saveEvent({ ...at('Dinner', '15 Alder Row'), place: { lat: 51.6, lng: -0.13 } }, id);
+    expect(titled('Dinner')).toMatchObject({ lat: 51.6, lng: -0.13, geocodeStatus: 'located' });
+    // Saved again without picking: the place stays with the unchanged address.
+    saveEvent({ ...at('Dinner', '15 Alder Row'), notes: 'Changed' }, id);
+    expect(titled('Dinner')).toMatchObject({ lat: 51.6, lng: -0.13, geocodeStatus: 'located' });
+    // Typed over: looked up again.
+    saveEvent(at('Dinner', '16 Alder Row'), id);
+    expect(titled('Dinner')).toMatchObject({ lat: null, lng: null, geocodeStatus: 'pending' });
+  });
+
+  it('ignores a picked place that is off the map', () => {
+    saveEvent({ ...at('Dinner', 'Nowhere'), place: { lat: 95, lng: 0 } });
+    expect(titled('Dinner')).toMatchObject({ lat: null, geocodeStatus: 'pending' });
+  });
+
   it('offers only events still to come, the soonest first', () => {
     saveEvent(at('Last week', 'Station Square', now - 7 * DAY));
     saveEvent(at('Next month', 'Harbour Print Studio', now + 30 * DAY));
@@ -616,6 +643,58 @@ describe('settings', () => {
   });
 });
 
+describe('saved walking routes', () => {
+  const from = { lat: 40.7484, lng: -73.9857 };
+  const to = { lat: 40.7536, lng: -73.9832 };
+  const now = evening;
+  /** About this many metres north of a point. */
+  const north = (p: { lat: number; lng: number }, metres: number) => ({ ...p, lat: p.lat + metres / 111_195 });
+  const route = (fetchedAt = now, start = from, end = to) => ({
+    from: start,
+    to: end,
+    line: [start, { lat: 40.751, lng: -73.984 }, end],
+    distance: 650,
+    duration: 470,
+    steps: [{ instruction: 'Head north on 5th Avenue', distance: 300, duration: 216, start: 0 }],
+    fetchedAt,
+  });
+
+  it('gives back a kept route, line and turns, for the same walk', () => {
+    keepRoute(route());
+    expect(findRoute(from, to, now + HOUR)).toEqual(route());
+  });
+
+  it('fits a start a little way off, but not one further away or another venue', () => {
+    keepRoute(route());
+    expect(findRoute(north(from, 60), to, now)).not.toBeNull();
+    expect(findRoute(north(from, 120), to, now)).toBeNull();
+    expect(findRoute(from, north(to, 60), now)).toBeNull();
+  });
+
+  it('lets a route go after two weeks', () => {
+    keepRoute(route());
+    expect(findRoute(from, to, now + 13 * DAY)).not.toBeNull();
+    expect(findRoute(from, to, now + 15 * DAY)).toBeNull();
+  });
+
+  it('gives the newest when two fit, and keeps no more than forty', () => {
+    keepRoute({ ...route(now), distance: 700 });
+    keepRoute({ ...route(now + 1), distance: 650 });
+    expect(findRoute(from, to, now + 2)?.distance).toBe(650);
+    for (let i = 0; i < 45; i++) keepRoute(route(now + 10 + i, north(from, 500 * (i + 1))));
+    const kept = shared.testDatabase!.prepare('SELECT count(*) AS n FROM routes').get() as { n: number };
+    expect(kept.n).toBe(40);
+  });
+
+  it('goes with Delete all data', () => {
+    keepRoute(route());
+    deleteAllData();
+    expect(findRoute(from, to, now)).toBeNull();
+  });
+});
+
+const { newDatabase } = jest.requireActual<typeof import('./sqlite.testing')>('./sqlite.testing');
+
 describe('the database file', () => {
   it('is wiped by Delete all data, settings included', () => {
     saveEvent(dinner);
@@ -625,7 +704,21 @@ describe('the database file', () => {
     expect(getSettings().onboardingDone).toBe(false);
   });
 
-  const { newDatabase } = jest.requireActual<typeof import('./sqlite.testing')>('./sqlite.testing');
+  it('upgrades a database made before saved routes, keeping what was in it', () => {
+    const old = newDatabase();
+    MIGRATIONS.slice(0, 3).forEach((sql) => old.exec(sql));
+    old.exec('PRAGMA user_version = 3');
+    old.exec(
+      `INSERT INTO events (id, source, title, startsAt, endsAt, timeZone, lat, lng, geocodeStatus,
+        createdAt, updatedAt)
+      VALUES ('abc', 'manual', 'Old dinner', 1000, 2000, 'UTC', 51.5, -0.12, 'located', 1, 1)`,
+    );
+    launchWith(old, (upgraded) => {
+      expect(upgraded.listEvents()).toMatchObject([{ id: 'abc', lat: 51.5, geocodeStatus: 'located' }]);
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: MIGRATIONS.length });
+      expect(upgraded.findRoute({ lat: 51.5, lng: -0.12 }, { lat: 51.5, lng: -0.12 })).toBeNull();
+    });
+  });
 
   it('upgrades a database made before photos, keeping what was in it', () => {
     const old = newDatabase();
@@ -665,7 +758,7 @@ describe('the database file', () => {
     launchWith(old, (upgraded) => {
       // The first read is what opens the database, and so what upgrades it.
       expect(upgraded.listEvents()).toHaveLength(4);
-      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: 3 });
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: MIGRATIONS.length });
       // Every row is as it was, with nothing marked as deleted.
       expect(old.prepare('SELECT * FROM events ORDER BY id').all()).toEqual(
         before.map((row) => ({ ...(row as object), deletedAt: null })),
@@ -704,7 +797,7 @@ describe('the database file', () => {
     launchWith(old, (upgraded) => {
       // Events with no key are never touched, however alike they are.
       expect(upgraded.listEvents().map((event) => event.id).sort()).toEqual(['abc', 'def', 's1']);
-      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: 3 });
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: MIGRATIONS.length });
     });
   });
 

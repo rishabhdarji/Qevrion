@@ -1,7 +1,9 @@
 import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 
 import { allDayToLocal, allDayToUtc } from '../lib/dates';
+import { distance, isPlace, type LatLng } from '../lib/geo';
 import { planImport, type ExistingEvent } from '../lib/importPlan';
+import type { WalkingRoute } from '../lib/route';
 import type {
   EventFields,
   ImportedEvent,
@@ -24,7 +26,8 @@ import type {
 // marks an imported event the owner deleted, kept so that the next sync does not bring
 // it back, and an event's key becomes unique within the calendar or file it came from.
 // A row that shares its key with an earlier one is dropped first: the index could not
-// be built over it, and a database that cannot be upgraded cannot be opened.
+// be built over it, and a database that cannot be upgraded cannot be opened. Version 4
+// keeps walking routes, so the same walk does not use up the route key's daily limit.
 export const MIGRATIONS = [
   `CREATE TABLE events (
     id TEXT PRIMARY KEY NOT NULL,
@@ -70,6 +73,19 @@ export const MIGRATIONS = [
   DELETE FROM events WHERE sourceId IS NOT NULL AND rowid NOT IN (
     SELECT min(rowid) FROM events WHERE sourceId IS NOT NULL GROUP BY source, sourceId);
   CREATE UNIQUE INDEX events_source ON events (source, sourceId) WHERE sourceId IS NOT NULL;`,
+  `CREATE TABLE routes (
+    id INTEGER PRIMARY KEY,
+    fromLat REAL NOT NULL,
+    fromLng REAL NOT NULL,
+    toLat REAL NOT NULL,
+    toLng REAL NOT NULL,
+    distance REAL NOT NULL,
+    duration REAL NOT NULL,
+    line TEXT NOT NULL,
+    steps TEXT NOT NULL,
+    fetchedAt INTEGER NOT NULL
+  ) STRICT;
+  CREATE INDEX routes_to ON routes (toLat);`,
 ];
 
 let opened: SQLiteDatabase | undefined;
@@ -147,28 +163,34 @@ export function listEvents(): StoredEvent[] {
  * Adds an event, or with `id` updates the fields the form edits and nothing else.
  * `fields.photo` is the photo's stored file name here (see src/data/events.ts).
  * Where the place is goes with the address: change the address and it is looked up
- * again, keep it and what was found stays.
+ * again, keep it and what was found stays. An address picked from the suggestions
+ * brings its place with it (`fields.place`), and is not looked up at all.
  */
 export function saveEvent(fields: EventFields, id?: string): void {
   const { allDay } = fields;
+  const place = isPlace(fields.place) ? fields.place : null;
   const description = fields.description ?? '';
   db().runSync(
     `INSERT INTO events (id, source, sourceId, title, startsAt, endsAt, allDay, timeZone,
-      locationText, url, host, description, isPartiful, notes, keyDetails, photo, createdAt,
-      updatedAt)
+      locationText, lat, lng, geocodeStatus, url, host, description, isPartiful, notes,
+      keyDetails, photo, createdAt, updatedAt)
     VALUES (coalesce($id, lower(hex(randomblob(16)))), 'manual', $sourceId, $title, $startsAt,
-      $endsAt, $allDay, $timeZone, $locationText, $url, $host, $description, $isPartiful, $notes,
-      $keyDetails, $photo, $now, $now)
+      $endsAt, $allDay, $timeZone, $locationText, $lat, $lng,
+      CASE WHEN $lat IS NULL THEN 'pending' ELSE 'located' END, $url, $host, $description,
+      $isPartiful, $notes, $keyDetails, $photo, $now, $now)
     ON CONFLICT (id) DO UPDATE SET
       title = excluded.title,
       startsAt = excluded.startsAt,
       endsAt = excluded.endsAt,
       allDay = excluded.allDay,
       locationText = excluded.locationText,
-      lat = CASE WHEN excluded.locationText = events.locationText THEN events.lat END,
-      lng = CASE WHEN excluded.locationText = events.locationText THEN events.lng END,
-      geocodeStatus = CASE WHEN excluded.locationText = events.locationText
-        THEN events.geocodeStatus ELSE 'pending' END,
+      lat = CASE WHEN excluded.lat IS NOT NULL THEN excluded.lat
+        WHEN excluded.locationText = events.locationText THEN events.lat END,
+      lng = CASE WHEN excluded.lat IS NOT NULL THEN excluded.lng
+        WHEN excluded.locationText = events.locationText THEN events.lng END,
+      geocodeStatus = CASE WHEN excluded.lat IS NOT NULL THEN 'located'
+        WHEN excluded.locationText = events.locationText THEN events.geocodeStatus
+        ELSE 'pending' END,
       url = excluded.url,
       host = excluded.host,
       notes = excluded.notes,
@@ -184,6 +206,8 @@ export function saveEvent(fields: EventFields, id?: string): void {
       $allDay: allDay ? 1 : 0,
       $timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       $locationText: fields.locationText,
+      $lat: place?.lat ?? null,
+      $lng: place?.lng ?? null,
       $url: fields.url,
       $host: fields.host,
       $description: description,
@@ -370,10 +394,91 @@ export function setGeocode(address: string, found: { lat: number; lng: number } 
   );
 }
 
-/** Every event and every setting. Settings go back to their defaults. */
+// Walking routes, kept so the same walk is not asked for twice. They hold where the
+// owner has been, so they stay on the phone, few and not for long.
+
+/** A kept route is used for a start within this of where it was asked from. */
+export const ROUTE_FROM_M = 75;
+/** And for a venue within this of the one it was asked for. */
+const ROUTE_TO_M = 25;
+/** Paths and pavements change; after this a route is asked for again. */
+export const ROUTE_KEEP_MS = 14 * 24 * 3_600_000;
+/** At most this many are kept, the newest. */
+const ROUTES_KEPT = 40;
+/** About 25 m of latitude, to narrow the search before measuring. */
+const NEAR_DEG = 0.00025;
+
+type RouteRow = {
+  fromLat: number;
+  fromLng: number;
+  toLat: number;
+  toLng: number;
+  distance: number;
+  duration: number;
+  line: string;
+  steps: string;
+  fetchedAt: number;
+};
+
+/** The newest kept route that fits this walk, or null. */
+export function findRoute(from: LatLng, to: LatLng, now = Date.now()): WalkingRoute | null {
+  const rows = db().getAllSync<RouteRow>(
+    `SELECT fromLat, fromLng, toLat, toLng, distance, duration, line, steps, fetchedAt
+    FROM routes WHERE toLat BETWEEN $low AND $high AND fetchedAt > $since
+    ORDER BY fetchedAt DESC`,
+    { $low: to.lat - NEAR_DEG, $high: to.lat + NEAR_DEG, $since: now - ROUTE_KEEP_MS },
+  );
+  const row = rows.find(
+    (r) =>
+      distance(to, { lat: r.toLat, lng: r.toLng }) <= ROUTE_TO_M &&
+      distance(from, { lat: r.fromLat, lng: r.fromLng }) <= ROUTE_FROM_M,
+  );
+  if (!row) return null;
+  return {
+    from: { lat: row.fromLat, lng: row.fromLng },
+    to: { lat: row.toLat, lng: row.toLng },
+    line: (JSON.parse(row.line) as [number, number][]).map(([lat, lng]) => ({ lat, lng })),
+    distance: row.distance,
+    duration: row.duration,
+    steps: JSON.parse(row.steps),
+    fetchedAt: row.fetchedAt,
+  };
+}
+
+/** Keeps a route, and lets go of old ones and any past the newest few. */
+export function keepRoute(route: WalkingRoute): void {
+  db().withTransactionSync(() => {
+    db().runSync(
+      `INSERT INTO routes (fromLat, fromLng, toLat, toLng, distance, duration, line, steps,
+        fetchedAt)
+      VALUES ($fromLat, $fromLng, $toLat, $toLng, $distance, $duration, $line, $steps, $fetchedAt)`,
+      {
+        $fromLat: route.from.lat,
+        $fromLng: route.from.lng,
+        $toLat: route.to.lat,
+        $toLng: route.to.lng,
+        $distance: route.distance,
+        $duration: route.duration,
+        // Pairs, not objects: a long route is a few thousand points.
+        $line: JSON.stringify(route.line.map((p) => [p.lat, p.lng])),
+        $steps: JSON.stringify(route.steps),
+        $fetchedAt: route.fetchedAt,
+      },
+    );
+    db().runSync(
+      `DELETE FROM routes WHERE fetchedAt <= $since OR id NOT IN (
+        SELECT id FROM routes ORDER BY fetchedAt DESC, id DESC LIMIT ${ROUTES_KEPT})`,
+      { $since: route.fetchedAt - ROUTE_KEEP_MS },
+    );
+  });
+}
+
+/** Every event, every setting and every kept route. Settings go back to their defaults. */
 export function deleteAllData(): void {
   db().withTransactionSync(() => {
-    db().execSync('DELETE FROM events; DELETE FROM settings; INSERT INTO settings (id) VALUES (1);');
+    db().execSync(
+      'DELETE FROM events; DELETE FROM routes; DELETE FROM settings; INSERT INTO settings (id) VALUES (1);',
+    );
   });
 }
 
