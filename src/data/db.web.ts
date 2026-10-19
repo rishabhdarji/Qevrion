@@ -145,7 +145,8 @@ export const importEvents: typeof Phone.importEvents = (incoming, scope) => {
       }),
     ),
   ];
-  return plan.result;
+  const { inserts, updates, rekeys, removed } = plan;
+  return { ...plan.result, wrote: inserts.length + updates.length + rekeys.length + removed.length > 0 };
 };
 
 // Nothing is looked up on a map in the preview, so there is never an address waiting.

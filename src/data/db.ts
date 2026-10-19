@@ -244,7 +244,7 @@ export function importEvents(
   incoming: ImportedEvent[],
   scope: ImportScope,
   now = Date.now(),
-): ImportResult {
+): ImportResult & { wrote: boolean } {
   const existing = db()
     .getAllSync<ExistingRow>(
       `SELECT id, sourceId, title, startsAt, endsAt, allDay, locationText, host, url, description,
@@ -320,7 +320,9 @@ export function importEvents(
       db().runSync('UPDATE events SET removedFromSource = 1, updatedAt = ? WHERE id = ?', [now, id]);
     }
   });
-  return plan.result;
+  const { inserts, updates, rekeys, removed } = plan;
+  // Whether anything was written, so the screens are only reloaded when it was.
+  return { ...plan.result, wrote: inserts.length + updates.length + rekeys.length + removed.length > 0 };
 }
 
 // Where an event is. The address is looked up elsewhere; this is where the answer is kept.
@@ -337,13 +339,15 @@ export function nextPendingAddress(now = Date.now()): { address: string | null; 
     WHERE events.geocodeStatus = 'pending' AND known.geocodeStatus != 'pending'
       AND known.locationText = events.locationText`,
   ).changes;
-  // Events still to come first, then whichever is nearest in time. Sample events are
-  // invented, so their addresses are never sent anywhere.
+  // Only what is needed is sent: events still to come that are still in their
+  // calendar, the soonest first. Sample events are invented, so their addresses are
+  // never sent anywhere.
   const next = db().getFirstSync<{ locationText: string }>(
     `SELECT locationText FROM events
     WHERE deletedAt IS NULL AND geocodeStatus = 'pending' AND trim(locationText) != ''
+      AND endsAt > $now AND removedFromSource = 0
       AND NOT (source = 'manual' AND ifnull(sourceId, '') LIKE '${SAMPLE_PREFIX}%')
-    ORDER BY endsAt <= $now, abs(startsAt - $now)
+    ORDER BY startsAt
     LIMIT 1`,
     { $now: now },
   );

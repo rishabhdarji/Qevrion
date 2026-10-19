@@ -9,6 +9,7 @@ import {
   removeSampleEvents,
   saveEvent,
   setGeocode,
+  showLocations,
 } from './events';
 import { dropAllPhotos, dropPhoto, keepPhoto } from './photos';
 
@@ -211,7 +212,9 @@ describe('events from the store', () => {
     ]);
   });
 
-  it('show where an address is as soon as it is known', () => {
+  it('show where an address is once the answers are shown', () => {
+    // Only addresses of events still to come are looked up.
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(evening - 48 * HOUR);
     saveEvent({ ...dinner, locationText: '14 Alder Row' });
     expect(only()).toMatchObject({ lat: null, lng: null, geocodeStatus: 'pending' });
     // Nothing was written, so nothing is read again.
@@ -220,6 +223,8 @@ describe('events from the store', () => {
     expect(getEvents()).toBe(before);
 
     setGeocode('14 Alder Row', { lat: 51.5, lng: -0.12 });
+    expect(getEvents()).toBe(before);
+    showLocations();
     expect(only()).toMatchObject({ lat: 51.5, lng: -0.12, geocodeStatus: 'located' });
 
     // A second event at that address is filled in without the address being offered again.
@@ -227,5 +232,13 @@ describe('events from the store', () => {
     expect(getEvents().map((event) => event.geocodeStatus)).toEqual(['located', 'pending']);
     expect(nextPendingAddress()).toBeNull();
     expect(getEvents().map((event) => event.geocodeStatus)).toEqual(['located', 'located']);
+    clock.mockRestore();
+  });
+
+  it('are not read again after an import that changed nothing', () => {
+    importEvents([invite], file);
+    const before = getEvents();
+    expect(importEvents([invite], file)).toEqual({ added: 0, updated: 0, unchanged: 1, skipped: 0 });
+    expect(getEvents()).toBe(before);
   });
 });

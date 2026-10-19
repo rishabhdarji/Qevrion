@@ -202,8 +202,8 @@ describe('importing', () => {
   };
 
   it('adds what is new, and nothing the second time', () => {
-    expect(sync([invite, picnic])).toEqual(counts(2, 0, 0, 0));
-    expect(sync([invite, picnic])).toEqual(counts(0, 0, 2, 0));
+    expect(sync([invite, picnic])).toMatchObject(counts(2, 0, 0, 0));
+    expect(sync([invite, picnic])).toMatchObject(counts(0, 0, 2, 0));
     expect(listEvents()).toHaveLength(2);
 
     expect(titled('Dinner')).toMatchObject({
@@ -242,7 +242,7 @@ describe('importing', () => {
       url: 'https://partiful.com/e/EXAMPLE123',
       description: 'Doors at eight.',
     };
-    expect(sync([changed])).toEqual(counts(0, 1, 0, 0));
+    expect(sync([changed])).toMatchObject(counts(0, 1, 0, 0));
 
     expect(listEvents()).toHaveLength(1);
     expect(listEvents()[0]).toMatchObject({ ...changed, id, isPartiful: true, notes: 'Bring wine', photo: 'mine.jpg' });
@@ -261,33 +261,33 @@ describe('importing', () => {
     saveEvent({ ...dinner, notes: 'Bring wine' }, id);
 
     const rekeyed = { ...invite, sourceId: 'home|9' };
-    expect(sync([rekeyed])).toEqual(counts(0, 0, 1, 0));
+    expect(sync([rekeyed])).toMatchObject(counts(0, 0, 1, 0));
     expect(listEvents()).toMatchObject([{ id, sourceId: 'home|9', notes: 'Bring wine', removedFromSource: false }]);
-    expect(sync([rekeyed])).toEqual(counts(0, 0, 1, 0));
+    expect(sync([rekeyed])).toMatchObject(counts(0, 0, 1, 0));
   });
 
   it('keeps two different events with the same title and start as two', () => {
     const twin = { ...invite, sourceId: 'home|2' };
-    expect(sync([invite, twin])).toEqual(counts(2, 0, 0, 0));
-    expect(sync([invite, twin])).toEqual(counts(0, 0, 2, 0));
+    expect(sync([invite, twin])).toMatchObject(counts(2, 0, 0, 0));
+    expect(sync([invite, twin])).toMatchObject(counts(0, 0, 2, 0));
     // One of them filtered out of the batch, then back.
-    expect(sync([twin], ['home|1', 'home|2'])).toEqual(counts(0, 0, 1, 0));
-    expect(sync([invite, twin])).toEqual(counts(0, 0, 2, 0));
+    expect(sync([twin], ['home|1', 'home|2'])).toMatchObject(counts(0, 0, 1, 0));
+    expect(sync([invite, twin])).toMatchObject(counts(0, 0, 2, 0));
     expect(listEvents().map((event) => event.sourceId).sort()).toEqual(['home|1', 'home|2']);
   });
 
   it('keeps the same key from a calendar and from a file apart', () => {
     sync([invite]);
-    expect(importEvents([invite], { source: 'ics' })).toEqual(counts(1, 0, 0, 0));
+    expect(importEvents([invite], { source: 'ics' })).toMatchObject(counts(1, 0, 0, 0));
     expect(listEvents().map((event) => event.source).sort()).toEqual(['calendar', 'ics']);
   });
 
   it('marks an event that is gone from the calendar, and clears the mark when it is back', () => {
     sync([invite]);
-    expect(sync([])).toEqual(counts(0, 0, 0, 0));
+    expect(sync([])).toMatchObject(counts(0, 0, 0, 0));
     expect(listEvents()).toMatchObject([{ title: 'Dinner', removedFromSource: true }]);
 
-    expect(sync([invite])).toEqual(counts(0, 1, 0, 0));
+    expect(sync([invite])).toMatchObject(counts(0, 1, 0, 0));
     expect(listEvents()).toMatchObject([{ title: 'Dinner', removedFromSource: false }]);
   });
 
@@ -310,7 +310,7 @@ describe('importing', () => {
 
   it('never calls anything gone when the import is a file', () => {
     importEvents([invite, picnic], { source: 'ics' });
-    expect(importEvents([], { source: 'ics' })).toEqual(counts(0, 0, 0, 0));
+    expect(importEvents([], { source: 'ics' })).toMatchObject(counts(0, 0, 0, 0));
     expect(listEvents().map((event) => event.removedFromSource)).toEqual([false, false]);
   });
 
@@ -351,8 +351,8 @@ describe('importing', () => {
     ]);
     expect(before).toMatchObject({ notes: 'Bring wine', photo: 'mine.jpg', geocodeStatus: 'located', isPartiful: 1 });
 
-    expect(sync([{ ...invite, title: 'Dinner, moved' }])).toEqual(counts(0, 0, 0, 1));
-    expect(sync([])).toEqual(counts(0, 0, 0, 0));
+    expect(sync([{ ...invite, title: 'Dinner, moved' }])).toMatchObject(counts(0, 0, 0, 1));
+    expect(sync([])).toMatchObject(counts(0, 0, 0, 0));
     expect(listEvents()).toEqual([]);
     expect(rows()).toMatchObject([{ title: 'Dinner', removedFromSource: 0 }]);
 
@@ -363,7 +363,7 @@ describe('importing', () => {
   it('never lets a deleted import take in a new event that looks like it', () => {
     sync([invite]);
     deleteEvent(listEvents()[0].id);
-    expect(sync([{ ...invite, sourceId: 'home|2' }])).toEqual(counts(1, 0, 0, 0));
+    expect(sync([{ ...invite, sourceId: 'home|2' }])).toMatchObject(counts(1, 0, 0, 0));
     expect(listEvents()).toMatchObject([{ sourceId: 'home|2', title: 'Dinner' }]);
   });
 
@@ -372,7 +372,7 @@ describe('importing', () => {
     saveEvent({ ...dinner, notes: 'Bring wine' }, listEvents()[0].id);
 
     // The same title and start turn up in another calendar.
-    expect(sync([{ ...invite, sourceId: 'home|9' }])).toEqual(counts(1, 0, 0, 0));
+    expect(sync([{ ...invite, sourceId: 'home|9' }])).toMatchObject(counts(1, 0, 0, 0));
     expect(listEvents().map(({ sourceId, notes }) => ({ sourceId, notes })).sort((a, b) => (a.sourceId! < b.sourceId! ? -1 : 1))).toEqual([
       { sourceId: 'home|9', notes: '' },
       { sourceId: 'work|1', notes: 'Bring wine' },
@@ -389,8 +389,8 @@ describe('importing', () => {
     };
     // A second key that only differs after a NUL, as the phone would cut it.
     const twin = { ...odd, sourceId: 'home|odd\u0000two', title: 'Twin' };
-    expect(sync([odd, twin])).toEqual(counts(2, 0, 0, 0));
-    expect(sync([odd, twin])).toEqual(counts(0, 0, 2, 0));
+    expect(sync([odd, twin])).toMatchObject(counts(2, 0, 0, 0));
+    expect(sync([odd, twin])).toMatchObject(counts(0, 0, 2, 0));
     expect(titled('Dinner party')).toMatchObject({
       sourceId: 'home|oddone',
       description: 'Doors at seven.\nUpstairs \uD83C\uDF89',
@@ -412,8 +412,8 @@ describe('importing', () => {
         endsAt: startOfDay(2026, 0, 2 + day + (day % 3)),
       }),
     );
-    expect(importEvents(days, { source: 'ics' })).toEqual(counts(365, 0, 0, 0));
-    expect(importEvents(days, { source: 'ics' })).toEqual(counts(0, 0, 365, 0));
+    expect(importEvents(days, { source: 'ics' })).toMatchObject(counts(365, 0, 0, 0));
+    expect(importEvents(days, { source: 'ics' })).toMatchObject(counts(0, 0, 365, 0));
     expect(titled('Day 304')).toMatchObject({ allDay: true, startsAt: days[304].startsAt, endsAt: days[304].endsAt });
   });
 
@@ -464,7 +464,7 @@ describe('where an event is', () => {
     expect(nextPendingAddress(now)).toEqual({ address: null, reused: 0 });
   });
 
-  it('offers events still to come first, the nearest first', () => {
+  it('offers only events still to come, the soonest first', () => {
     saveEvent(at('Last week', 'Station Square', now - 7 * DAY));
     saveEvent(at('Next month', 'Harbour Print Studio', now + 30 * DAY));
     saveEvent(at('Tomorrow', 'Table and Vine', now + DAY));
@@ -475,15 +475,18 @@ describe('where an event is', () => {
       offered.push(next);
       setGeocode(next, null);
     }
-    expect(offered).toEqual(['Table and Vine', 'Harbour Print Studio', 'Canal Bridge steps', 'Station Square']);
+    expect(offered).toEqual(['Table and Vine', 'Harbour Print Studio']);
   });
 
-  it('never offers a sample event, an empty address or a deleted event', () => {
+  it('never offers a sample event, an empty address, a deleted or a removed event', () => {
     replaceSampleEvents(makeSampleEvents(now));
     saveEvent(at('Somewhere', ''));
     saveEvent(at('Nowhere', '   '));
     sync([invite]);
     deleteEvent(titled('Dinner').id);
+    sync([{ ...invite, sourceId: 'home|2', title: 'Picnic', locationText: 'Canal Bridge steps' }]);
+    sync([], []);
+    expect(titled('Picnic').removedFromSource).toBe(true);
     expect(nextPendingAddress(now)).toEqual({ address: null, reused: 0 });
 
     // An imported event is offered even when its key reads like a sample's.

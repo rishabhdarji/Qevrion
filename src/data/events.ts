@@ -85,8 +85,9 @@ export function removeEvent(id: string): void {
 
 /** Brings in events from a calendar or a file, and says how many were added, changed and so on. */
 export function importEvents(incoming: ImportedEvent[], scope: ImportScope): ImportResult {
-  const result = db.importEvents(incoming, scope);
-  changed();
+  const { wrote, ...result } = db.importEvents(incoming, scope);
+  // A sync runs on every app open and usually finds nothing new: then nothing redraws.
+  if (wrote) changed();
   return result;
 }
 
@@ -98,11 +99,16 @@ export function nextPendingAddress(): string | null {
   return address;
 }
 
-/** Records where an address is, or with null that it could not be found. */
+/**
+ * Records where an address is, or with null that it could not be found. The screens
+ * see it at the next `showLocations`, so a run of answers redraws them once.
+ */
 export function setGeocode(address: string, found: { lat: number; lng: number } | null): void {
   db.setGeocode(address, found);
-  changed();
 }
+
+/** Shows the screens what `setGeocode` has written since. */
+export const showLocations = (): void => changed();
 
 /** Puts in a fresh set of sample events, replacing any that are already there. */
 export function insertSampleEvents(): void {
