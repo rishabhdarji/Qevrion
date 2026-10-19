@@ -29,7 +29,14 @@ export function PrimaryButton({ label, onPress, accessibilityHint, disabled = fa
         onPress?.();
       }}
     >
-      <Txt variant="button" color="primaryButtonText" maxFontSizeMultiplier={1.3} numberOfLines={1}>
+      {/* Two lines rather than a cut-off label on a small phone at a large text size. */}
+      <Txt
+        variant="button"
+        color="primaryButtonText"
+        maxFontSizeMultiplier={1.3}
+        numberOfLines={2}
+        style={styles.label}
+      >
         {label}
       </Txt>
     </PressableScale>
@@ -37,6 +44,9 @@ export function PrimaryButton({ label, onPress, accessibilityHint, disabled = fa
 }
 
 const styles = StyleSheet.create({
+  label: {
+    textAlign: 'center',
+  },
   button: {
     minHeight: size.button,
     borderRadius: radius.pill,

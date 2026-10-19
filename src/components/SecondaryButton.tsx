@@ -22,7 +22,14 @@ export function SecondaryButton({ label, onPress, color = 'textPrimary', accessi
       style={styles.button}
       onPress={onPress}
     >
-      <Txt variant="button" color={color} maxFontSizeMultiplier={1.3} numberOfLines={1}>
+      {/* Two lines rather than a cut-off label on a small phone at a large text size. */}
+      <Txt
+        variant="button"
+        color={color}
+        maxFontSizeMultiplier={1.3}
+        numberOfLines={2}
+        style={styles.label}
+      >
         {label}
       </Txt>
     </PressableScale>
@@ -30,6 +37,9 @@ export function SecondaryButton({ label, onPress, color = 'textPrimary', accessi
 }
 
 const styles = StyleSheet.create({
+  label: {
+    textAlign: 'center',
+  },
   button: {
     minHeight: size.button,
     borderRadius: radius.pill,
