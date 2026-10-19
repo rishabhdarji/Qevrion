@@ -46,7 +46,7 @@ Invites pile up. They live in different apps, the details are buried in long des
 | 0 | Preflight and hello world | **Done** |
 | 1 | Design system and app shell | **Done** |
 | 2 | Database and manual events | **Done** |
-| 3 | Import from Calendar and `.ics` | Next |
+| 3 | Import from Calendar and `.ics` | Built, being checked |
 | 4 | Map and walking route | Planned |
 | 5 | AR Walk | Planned |
 | 6 | Reminders | Planned |

@@ -1,15 +1,18 @@
 import { findConflicts } from '../lib/conflicts';
 import { startOfDay } from '../lib/dates';
-import type { EventFields } from '../types';
+import type { EventFields, ImportedEvent } from '../types';
 import {
   deleteAllData,
   deleteEvent,
   deleteSampleEvents,
   getSettings,
+  importEvents,
   listEvents,
   MIGRATIONS,
+  nextPendingAddress,
   replaceSampleEvents,
   saveEvent,
+  setGeocode,
   updateSettings,
 } from './db';
 import { makeSampleEvents, SAMPLE_COUNT } from './sampleEvents';
@@ -18,7 +21,30 @@ import { makeSampleEvents, SAMPLE_COUNT } from './sampleEvents';
 // phone's. A mistake in the schema or a query fails this file instead of the app.
 jest.mock('expo-sqlite', () => jest.requireActual('./sqlite.testing'));
 
+type Database = ReturnType<typeof import('./sqlite.testing').newDatabase>;
+const shared = globalThis as { testDatabase?: Database };
+
+/** Every stored row as it is, for what no screen reads yet and for rows kept out of sight. */
+const rows = () =>
+  shared.testDatabase!.prepare('SELECT * FROM events ORDER BY title').all() as Record<string, unknown>[];
+
+/** Hands a database to a fresh copy of the module, as the next launch would. */
+function launchWith(database: Database, check: (launched: typeof import('./db')) => void) {
+  const current = shared.testDatabase;
+  shared.testDatabase = database;
+  try {
+    let launched!: typeof import('./db');
+    jest.isolateModules(() => {
+      launched = jest.requireActual('./db');
+    });
+    check(launched);
+  } finally {
+    shared.testDatabase = current;
+  }
+}
+
 const HOUR = 3_600_000;
+const DAY = 24 * HOUR;
 const evening = new Date(2026, 9, 17, 19).getTime();
 
 const dinner: EventFields = {
@@ -31,6 +57,45 @@ const dinner: EventFields = {
   url: null,
   notes: 'Bring wine',
 };
+
+/** The same dinner as a calendar would hand it over. */
+const invite: ImportedEvent = {
+  sourceId: 'home|1',
+  title: 'Dinner',
+  startsAt: evening,
+  endsAt: evening + 2 * HOUR,
+  allDay: false,
+  locationText: '14 Alder Row',
+  host: 'Maya',
+  url: null,
+  description: 'Doors at seven.',
+};
+
+const counts = (added: number, updated: number, unchanged: number, skipped: number) => ({
+  added,
+  updated,
+  unchanged,
+  skipped,
+});
+
+/**
+ * A sync of the calendar `home`, read from a month before the dinner to a year after.
+ * Unless told otherwise, what is handed over is all the calendar has.
+ */
+const sync = (
+  events: ImportedEvent[],
+  present = events.map((event) => event.sourceId),
+  calendarIds = ['home'],
+) =>
+  importEvents(events, {
+    source: 'calendar',
+    calendarIds,
+    from: evening - 30 * DAY,
+    to: evening + 365 * DAY,
+    present,
+  });
+
+const titled = (title: string) => listEvents().find((event) => event.title === title)!;
 
 beforeEach(deleteAllData);
 
@@ -123,6 +188,363 @@ describe('events', () => {
   });
 });
 
+describe('importing', () => {
+  const picnic: ImportedEvent = {
+    ...invite,
+    sourceId: 'home|2',
+    title: 'Picnic',
+    startsAt: evening + 3 * DAY,
+    endsAt: evening + 3 * DAY + HOUR,
+    locationText: 'Community Garden Hall',
+    url: 'https://partiful.com/e/EXAMPLE123',
+    // Longer than is kept, with an emoji sitting on the cut.
+    description: `${'d'.repeat(19_999)}🎉🎉`,
+  };
+
+  it('adds what is new, and nothing the second time', () => {
+    expect(sync([invite, picnic])).toMatchObject(counts(2, 0, 0, 0));
+    expect(sync([invite, picnic])).toMatchObject(counts(0, 0, 2, 0));
+    expect(listEvents()).toHaveLength(2);
+
+    expect(titled('Dinner')).toMatchObject({
+      ...invite,
+      source: 'calendar',
+      isPartiful: false,
+      notes: '',
+      keyDetails: [],
+      photo: null,
+      lat: null,
+      lng: null,
+      geocodeStatus: 'pending',
+      removedFromSource: false,
+    });
+    expect(titled('Dinner').id).toMatch(/^[0-9a-f]{32}$/);
+    expect(titled('Picnic')).toMatchObject({ isPartiful: true, description: 'd'.repeat(19_999) });
+  });
+
+  it('changes what the calendar owns and nothing the owner added', () => {
+    sync([invite]);
+    const { id } = listEvents()[0];
+    saveEvent({ ...dinner, notes: 'Bring wine', photo: 'mine.jpg' }, id);
+    // No screen writes these yet, so they are put in underneath.
+    shared.testDatabase!.exec(
+      `UPDATE events SET checklist = '["Wine"]', tags = '["friends"]', reminderOffsets = '[60]',
+        keyDetails = '["Smart casual"]'`,
+    );
+    const [before] = rows();
+
+    const changed = {
+      ...invite,
+      title: 'Late dinner',
+      startsAt: evening + HOUR,
+      endsAt: evening + 4 * HOUR,
+      host: 'Maya Okafor',
+      url: 'https://partiful.com/e/EXAMPLE123',
+      description: 'Doors at eight.',
+    };
+    expect(sync([changed])).toMatchObject(counts(0, 1, 0, 0));
+
+    expect(listEvents()).toHaveLength(1);
+    expect(listEvents()[0]).toMatchObject({ ...changed, id, isPartiful: true, notes: 'Bring wine', photo: 'mine.jpg' });
+    expect(rows()[0]).toMatchObject({
+      checklist: before.checklist,
+      tags: before.tags,
+      reminderOffsets: before.reminderOffsets,
+      keyDetails: before.keyDetails,
+      createdAt: before.createdAt,
+    });
+  });
+
+  it('follows an event to a new key by its title and start', () => {
+    sync([invite]);
+    const { id } = listEvents()[0];
+    saveEvent({ ...dinner, notes: 'Bring wine' }, id);
+
+    const rekeyed = { ...invite, sourceId: 'home|9' };
+    expect(sync([rekeyed])).toMatchObject(counts(0, 0, 1, 0));
+    expect(listEvents()).toMatchObject([{ id, sourceId: 'home|9', notes: 'Bring wine', removedFromSource: false }]);
+    expect(sync([rekeyed])).toMatchObject(counts(0, 0, 1, 0));
+  });
+
+  it('keeps two different events with the same title and start as two', () => {
+    const twin = { ...invite, sourceId: 'home|2' };
+    expect(sync([invite, twin])).toMatchObject(counts(2, 0, 0, 0));
+    expect(sync([invite, twin])).toMatchObject(counts(0, 0, 2, 0));
+    // One of them filtered out of the batch, then back.
+    expect(sync([twin], ['home|1', 'home|2'])).toMatchObject(counts(0, 0, 1, 0));
+    expect(sync([invite, twin])).toMatchObject(counts(0, 0, 2, 0));
+    expect(listEvents().map((event) => event.sourceId).sort()).toEqual(['home|1', 'home|2']);
+  });
+
+  it('keeps the same key from a calendar and from a file apart', () => {
+    sync([invite]);
+    expect(importEvents([invite], { source: 'ics' })).toMatchObject(counts(1, 0, 0, 0));
+    expect(listEvents().map((event) => event.source).sort()).toEqual(['calendar', 'ics']);
+  });
+
+  it('marks an event that is gone from the calendar, and clears the mark when it is back', () => {
+    sync([invite]);
+    expect(sync([])).toMatchObject(counts(0, 0, 0, 0));
+    expect(listEvents()).toMatchObject([{ title: 'Dinner', removedFromSource: true }]);
+
+    expect(sync([invite])).toMatchObject(counts(0, 1, 0, 0));
+    expect(listEvents()).toMatchObject([{ title: 'Dinner', removedFromSource: false }]);
+  });
+
+  it('does not call an event gone when it cannot tell', () => {
+    const outside = { ...invite, sourceId: 'home|far', title: 'Next winter', startsAt: evening + 400 * DAY, endsAt: evening + 401 * DAY };
+    const unread = { ...invite, sourceId: 'work|1', title: 'Team lunch' };
+    const filtered = { ...invite, sourceId: 'home|3', title: 'Quiet night' };
+    sync([invite, outside, unread, filtered], undefined, ['home', 'work']);
+
+    // Only `home` is read this time, and it still has the event that was filtered out.
+    sync([], ['home|3']);
+
+    expect(Object.fromEntries(listEvents().map((event) => [event.title, event.removedFromSource]))).toEqual({
+      Dinner: true,
+      'Next winter': false,
+      'Team lunch': false,
+      'Quiet night': false,
+    });
+  });
+
+  it('never calls anything gone when the import is a file', () => {
+    importEvents([invite, picnic], { source: 'ics' });
+    expect(importEvents([], { source: 'ics' })).toMatchObject(counts(0, 0, 0, 0));
+    expect(listEvents().map((event) => event.removedFromSource)).toEqual([false, false]);
+  });
+
+  it('keeps a deleted import deleted, and really deletes an event added by hand', () => {
+    sync([{ ...invite, url: 'https://partiful.com/e/EXAMPLE123' }]);
+    saveEvent({ ...dinner, title: 'Lunch' });
+    saveEvent({ ...dinner, url: 'https://partiful.com/e/EXAMPLE123', photo: 'mine.jpg' }, titled('Dinner').id);
+    setGeocode(invite.locationText, { lat: 51.5, lng: -0.12 });
+    shared.testDatabase!.exec(
+      `UPDATE events SET checklist = '["Wine"]', tags = '["friends"]', reminderOffsets = '[60]',
+        keyDetails = '["Smart casual"]'`,
+    );
+    const [before] = rows().filter((row) => row.title === 'Dinner');
+
+    deleteEvent(titled('Lunch').id);
+    deleteEvent(titled('Dinner').id);
+    expect(listEvents()).toEqual([]);
+    // The import is still stored, out of sight, with nothing kept but what tells it apart.
+    expect(rows()).toEqual([
+      {
+        ...before,
+        deletedAt: expect.any(Number),
+        description: '',
+        locationText: '',
+        host: '',
+        url: null,
+        photo: null,
+        notes: '',
+        lat: null,
+        lng: null,
+        geocodeStatus: 'pending',
+        isPartiful: 0,
+        tags: '[]',
+        checklist: '[]',
+        keyDetails: '[]',
+        reminderOffsets: null,
+      },
+    ]);
+    expect(before).toMatchObject({ notes: 'Bring wine', photo: 'mine.jpg', geocodeStatus: 'located', isPartiful: 1 });
+
+    expect(sync([{ ...invite, title: 'Dinner, moved' }])).toMatchObject(counts(0, 0, 0, 1));
+    expect(sync([])).toMatchObject(counts(0, 0, 0, 0));
+    expect(listEvents()).toEqual([]);
+    expect(rows()).toMatchObject([{ title: 'Dinner', removedFromSource: 0 }]);
+
+    deleteAllData();
+    expect(rows()).toEqual([]);
+  });
+
+  it('never lets a deleted import take in a new event that looks like it', () => {
+    sync([invite]);
+    deleteEvent(listEvents()[0].id);
+    expect(sync([{ ...invite, sourceId: 'home|2' }])).toMatchObject(counts(1, 0, 0, 0));
+    expect(listEvents()).toMatchObject([{ sourceId: 'home|2', title: 'Dinner' }]);
+  });
+
+  it('leaves an event from a calendar that was not read with its own notes', () => {
+    sync([{ ...invite, sourceId: 'work|1' }], undefined, ['work']);
+    saveEvent({ ...dinner, notes: 'Bring wine' }, listEvents()[0].id);
+
+    // The same title and start turn up in another calendar.
+    expect(sync([{ ...invite, sourceId: 'home|9' }])).toMatchObject(counts(1, 0, 0, 0));
+    expect(listEvents().map(({ sourceId, notes }) => ({ sourceId, notes })).sort((a, b) => (a.sourceId! < b.sourceId! ? -1 : 1))).toEqual([
+      { sourceId: 'home|9', notes: '' },
+      { sourceId: 'work|1', notes: 'Bring wine' },
+    ]);
+  });
+
+  it('stores text without what the phone cannot keep, so it comes back unchanged', () => {
+    const odd: ImportedEvent = {
+      ...invite,
+      sourceId: 'home|odd\u0000one',
+      title: 'Din\u0000ner\uD83C party\u0007',
+      description: 'Doors at seven.\r\nUpstairs \uDFFF\uD83C\uDF89',
+      host: 'Maya\u001F',
+    };
+    // A second key that only differs after a NUL, as the phone would cut it.
+    const twin = { ...odd, sourceId: 'home|odd\u0000two', title: 'Twin' };
+    expect(sync([odd, twin])).toMatchObject(counts(2, 0, 0, 0));
+    expect(sync([odd, twin])).toMatchObject(counts(0, 0, 2, 0));
+    expect(titled('Dinner party')).toMatchObject({
+      sourceId: 'home|oddone',
+      description: 'Doors at seven.\nUpstairs \uD83C\uDF89',
+      host: 'Maya',
+    });
+    expect(titled('Twin').sourceId).toBe('home|oddtwo');
+  });
+
+  it('finds all-day events unchanged when they come in again, every day of the year', () => {
+    // Each zone's clock-change days are in here; `npm run test:zones` runs six.
+    const days = Array.from(
+      { length: 365 },
+      (_, day): ImportedEvent => ({
+        ...invite,
+        sourceId: `day-${day}`,
+        title: `Day ${day}`,
+        allDay: true,
+        startsAt: startOfDay(2026, 0, 1 + day),
+        endsAt: startOfDay(2026, 0, 2 + day + (day % 3)),
+      }),
+    );
+    expect(importEvents(days, { source: 'ics' })).toMatchObject(counts(365, 0, 0, 0));
+    expect(importEvents(days, { source: 'ics' })).toMatchObject(counts(0, 0, 365, 0));
+    expect(titled('Day 304')).toMatchObject({ allDay: true, startsAt: days[304].startsAt, endsAt: days[304].endsAt });
+  });
+
+  it('saves all of an import or none of it', () => {
+    sync([invite]);
+    // The last thing this sync does is mark the dinner as gone. Make that step fail,
+    // after the picnic has been added.
+    const database = shared.testDatabase!;
+    const prepare = database.prepare.bind(database);
+    database.prepare = (sql) => {
+      if (sql.includes('removedFromSource = 1')) throw new Error('The disk is full');
+      return prepare(sql);
+    };
+    try {
+      expect(() => sync([picnic])).toThrow('The disk is full');
+    } finally {
+      database.prepare = prepare;
+    }
+    expect(listEvents()).toMatchObject([{ title: 'Dinner', removedFromSource: false }]);
+  });
+});
+
+describe('where an event is', () => {
+  const now = evening - 2 * DAY;
+  const place = { lat: 51.5, lng: -0.12 };
+  const at = (title: string, locationText: string, startsAt = evening): EventFields => ({
+    ...dinner,
+    title,
+    locationText,
+    startsAt,
+    endsAt: startsAt + 2 * HOUR,
+  });
+
+  it('gives one answer to every event waiting on that address', () => {
+    saveEvent(at('Dinner', '14 Alder Row'));
+    saveEvent(at('Drinks', '14 Alder Row', evening + 3 * HOUR));
+    saveEvent(at('Brunch', 'Table and Vine', evening + DAY));
+
+    expect(nextPendingAddress(now)).toEqual({ address: '14 Alder Row', reused: 0 });
+    setGeocode('14 Alder Row', place);
+    expect(titled('Dinner')).toMatchObject({ ...place, geocodeStatus: 'located' });
+    expect(titled('Drinks')).toMatchObject({ ...place, geocodeStatus: 'located' });
+    expect(titled('Brunch')).toMatchObject({ lat: null, lng: null, geocodeStatus: 'pending' });
+
+    expect(nextPendingAddress(now)).toEqual({ address: 'Table and Vine', reused: 0 });
+    setGeocode('Table and Vine', null);
+    expect(titled('Brunch')).toMatchObject({ lat: null, lng: null, geocodeStatus: 'notFound' });
+    expect(nextPendingAddress(now)).toEqual({ address: null, reused: 0 });
+  });
+
+  it('offers only events still to come, the soonest first', () => {
+    saveEvent(at('Last week', 'Station Square', now - 7 * DAY));
+    saveEvent(at('Next month', 'Harbour Print Studio', now + 30 * DAY));
+    saveEvent(at('Tomorrow', 'Table and Vine', now + DAY));
+    saveEvent(at('Yesterday', 'Canal Bridge steps', now - DAY));
+
+    const offered: string[] = [];
+    for (let next = nextPendingAddress(now).address; next !== null; next = nextPendingAddress(now).address) {
+      offered.push(next);
+      setGeocode(next, null);
+    }
+    expect(offered).toEqual(['Table and Vine', 'Harbour Print Studio']);
+  });
+
+  it('never offers a sample event, an empty address, a deleted or a removed event', () => {
+    replaceSampleEvents(makeSampleEvents(now));
+    saveEvent(at('Somewhere', ''));
+    saveEvent(at('Nowhere', '   '));
+    sync([invite]);
+    deleteEvent(titled('Dinner').id);
+    sync([{ ...invite, sourceId: 'home|2', title: 'Picnic', locationText: 'Canal Bridge steps' }]);
+    sync([], []);
+    expect(titled('Picnic').removedFromSource).toBe(true);
+    expect(nextPendingAddress(now)).toEqual({ address: null, reused: 0 });
+
+    // An imported event is offered even when its key reads like a sample's.
+    importEvents([{ ...invite, sourceId: 'sample:1', locationText: 'Station Square' }], { source: 'ics' });
+    expect(nextPendingAddress(now).address).toBe('Station Square');
+  });
+
+  it('reuses the answer for an address it has seen, without asking again', () => {
+    saveEvent(at('Dinner', '14 Alder Row'));
+    saveEvent(at('Brunch', 'Table and Vine'));
+    setGeocode('14 Alder Row', place);
+    setGeocode('Table and Vine', null);
+
+    saveEvent(at('Drinks', '14 Alder Row'));
+    sync([{ ...invite, title: 'Supper', locationText: 'Table and Vine' }]);
+    expect(titled('Drinks').geocodeStatus).toBe('pending');
+
+    expect(nextPendingAddress(now)).toEqual({ address: null, reused: 2 });
+    expect(titled('Drinks')).toMatchObject({ ...place, geocodeStatus: 'located' });
+    expect(titled('Supper')).toMatchObject({ lat: null, lng: null, geocodeStatus: 'notFound' });
+    expect(nextPendingAddress(now)).toEqual({ address: null, reused: 0 });
+  });
+
+  it('looks again when the form changes the address, and not when it leaves it', () => {
+    saveEvent(at('Dinner', '14 Alder Row'));
+    const { id } = listEvents()[0];
+    setGeocode('14 Alder Row', place);
+
+    saveEvent(at('Late dinner', '14 Alder Row', evening + HOUR), id);
+    expect(listEvents()[0]).toMatchObject({ title: 'Late dinner', ...place, geocodeStatus: 'located' });
+
+    saveEvent(at('Late dinner', '9 Wren Street'), id);
+    expect(listEvents()[0]).toMatchObject({ lat: null, lng: null, geocodeStatus: 'pending' });
+    expect(nextPendingAddress(now).address).toBe('9 Wren Street');
+  });
+
+  it('looks again when a sync changes the address, and not when it leaves it', () => {
+    sync([invite]);
+    setGeocode(invite.locationText, place);
+
+    sync([{ ...invite, title: 'Late dinner' }]);
+    expect(listEvents()[0]).toMatchObject({ title: 'Late dinner', ...place, geocodeStatus: 'located' });
+
+    sync([{ ...invite, locationText: '9 Wren Street' }]);
+    expect(listEvents()[0]).toMatchObject({ lat: null, lng: null, geocodeStatus: 'pending' });
+  });
+
+  it('counts a place that is off the map as not found', () => {
+    saveEvent(at('Dinner', '14 Alder Row'));
+    setGeocode('14 Alder Row', { lat: 91, lng: 0 });
+    expect(listEvents()[0]).toMatchObject({ lat: null, lng: null, geocodeStatus: 'notFound' });
+
+    saveEvent(at('Brunch', 'Table and Vine'));
+    setGeocode('Table and Vine', { lat: NaN, lng: 0 });
+    expect(titled('Brunch')).toMatchObject({ lat: null, lng: null, geocodeStatus: 'notFound' });
+  });
+});
+
 describe('sample events', () => {
   const now = new Date(2026, 9, 10, 12).getTime();
   const samples = makeSampleEvents(now);
@@ -158,6 +580,13 @@ describe('sample events', () => {
 
     deleteSampleEvents();
     expect(listEvents().map((event) => event.title)).toEqual(['Dinner']);
+  });
+
+  it('leaves an imported event alone, even one whose key reads like a sample', () => {
+    importEvents([{ ...invite, sourceId: 'sample:1' }], { source: 'ics' });
+    replaceSampleEvents(samples);
+    deleteSampleEvents();
+    expect(listEvents()).toMatchObject([{ source: 'ics', sourceId: 'sample:1' }]);
   });
 });
 
@@ -196,8 +625,9 @@ describe('the database file', () => {
     expect(getSettings().onboardingDone).toBe(false);
   });
 
+  const { newDatabase } = jest.requireActual<typeof import('./sqlite.testing')>('./sqlite.testing');
+
   it('upgrades a database made before photos, keeping what was in it', () => {
-    const { newDatabase } = jest.requireActual<typeof import('./sqlite.testing')>('./sqlite.testing');
     const old = newDatabase();
     old.exec(MIGRATIONS[0]);
     old.exec('PRAGMA user_version = 1');
@@ -206,15 +636,7 @@ describe('the database file', () => {
       VALUES ('abc', 'manual', 'Old dinner', 1000, 2000, 'UTC', 'Bring wine', 1, 1)`,
     );
 
-    // Hand the old database to a fresh copy of the module, as the next launch would.
-    const shared = globalThis as { testDatabase?: unknown };
-    const current = shared.testDatabase;
-    shared.testDatabase = old;
-    try {
-      let upgraded!: typeof import('./db');
-      jest.isolateModules(() => {
-        upgraded = jest.requireActual('./db');
-      });
+    launchWith(old, (upgraded) => {
       expect(upgraded.listEvents()).toMatchObject([
         { id: 'abc', title: 'Old dinner', notes: 'Bring wine', photo: null },
       ]);
@@ -222,9 +644,68 @@ describe('the database file', () => {
 
       upgraded.saveEvent({ ...dinner, photo: 'new.jpg' }, 'abc');
       expect(upgraded.listEvents()[0].photo).toBe('new.jpg');
-    } finally {
-      shared.testDatabase = current;
-    }
+    });
+  });
+
+  it('upgrades a database made before imports, sample events and all', () => {
+    const old = newDatabase();
+    old.exec(MIGRATIONS[0]);
+    old.exec(MIGRATIONS[1]);
+    old.exec('PRAGMA user_version = 2');
+    old.exec(
+      `INSERT INTO events (id, source, sourceId, title, startsAt, endsAt, timeZone, notes, photo,
+        createdAt, updatedAt)
+      VALUES ('s1', 'manual', 'sample:1', 'Sample one', 1000, 2000, 'UTC', '', NULL, 1, 1),
+        ('s2', 'manual', 'sample:2', 'Sample two', 1000, 2000, 'UTC', '', 'sample.jpg', 1, 1),
+        ('abc', 'manual', NULL, 'Old dinner', 1000, 2000, 'UTC', 'Bring wine', 'kept.jpg', 1, 1),
+        ('def', 'manual', NULL, 'Old lunch', 3000, 4000, 'UTC', '', NULL, 1, 1)`,
+    );
+    const before = old.prepare('SELECT * FROM events ORDER BY id').all();
+
+    launchWith(old, (upgraded) => {
+      // The first read is what opens the database, and so what upgrades it.
+      expect(upgraded.listEvents()).toHaveLength(4);
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: 3 });
+      // Every row is as it was, with nothing marked as deleted.
+      expect(old.prepare('SELECT * FROM events ORDER BY id').all()).toEqual(
+        before.map((row) => ({ ...(row as object), deletedAt: null })),
+      );
+
+      // What the upgrade is for works on the old data: imports, and one row per key.
+      expect(upgraded.importEvents([invite], { source: 'ics' }).added).toBe(1);
+      expect(() =>
+        old.exec(
+          `INSERT INTO events (id, source, sourceId, title, startsAt, endsAt, timeZone, createdAt, updatedAt)
+          VALUES ('s3', 'manual', 'sample:1', 'Sample again', 1000, 2000, 'UTC', 1, 1)`,
+        ),
+      ).toThrow();
+      upgraded.deleteSampleEvents();
+      expect(upgraded.listEvents().map((event) => event.title).sort()).toEqual([
+        'Dinner',
+        'Old dinner',
+        'Old lunch',
+      ]);
+    });
+  });
+
+  it('still upgrades when two old rows share a key, keeping the first', () => {
+    const old = newDatabase();
+    old.exec(MIGRATIONS[0]);
+    old.exec(MIGRATIONS[1]);
+    old.exec('PRAGMA user_version = 2');
+    old.exec(
+      `INSERT INTO events (id, source, sourceId, title, startsAt, endsAt, timeZone, createdAt, updatedAt)
+      VALUES ('s1', 'manual', 'sample:1', 'Sample one', 1000, 2000, 'UTC', 1, 1),
+        ('s2', 'manual', 'sample:1', 'Sample one again', 1000, 2000, 'UTC', 1, 1),
+        ('abc', 'manual', NULL, 'Old dinner', 1000, 2000, 'UTC', 1, 1),
+        ('def', 'manual', NULL, 'Old dinner', 1000, 2000, 'UTC', 1, 1)`,
+    );
+
+    launchWith(old, (upgraded) => {
+      // Events with no key are never touched, however alike they are.
+      expect(upgraded.listEvents().map((event) => event.id).sort()).toEqual(['abc', 'def', 's1']);
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: 3 });
+    });
   });
 
   it('opens again without being rebuilt, with everything still in it', () => {

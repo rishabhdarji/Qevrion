@@ -19,7 +19,15 @@ export function StatGrid({ items }: Props) {
           accessible
           accessibilityLabel={`${item.label}: ${item.value}`}
         >
-          <Txt variant="label" color="textSecondary">
+          {/* One line, shrunk to fit if it must: a narrow phone at a large text size
+              would otherwise break "Unchanged" mid-word. */}
+          <Txt
+            variant="label"
+            color="textSecondary"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+          >
             {item.label}
           </Txt>
           <Txt variant="title">{item.value}</Txt>

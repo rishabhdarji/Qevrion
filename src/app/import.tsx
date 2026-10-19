@@ -1,18 +1,34 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import * as Calendar from 'expo-calendar/legacy';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import * as DocumentPicker from 'expo-document-picker';
+import * as Linking from 'expo-linking';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  ActivityIndicator,
+  AppState,
+  Platform,
+  StyleSheet,
+  Switch,
+  View,
+} from 'react-native';
 
 import { Card, ListRow } from '@/components/Card';
 import { Icon, type IconName } from '@/components/Icon';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { SampleBadge } from '@/components/SampleBadge';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionLabel } from '@/components/SectionLabel';
 import { StatGrid } from '@/components/StatGrid';
 import { StepBars } from '@/components/StepBars';
 import { Txt } from '@/components/Txt';
+import { getSettings, updateSettings } from '@/data/db';
+import { isPartifulEvent, toImported } from '@/lib/calendarImport';
+import { importFile, syncCalendars, syncWindow } from '@/lib/sync';
 import { colors, space } from '@/theme';
+import type { ImportResult } from '@/types';
 
 const SOURCES: { title: string; subtitle: string; status: string; icon: IconName }[] = [
   {
@@ -29,37 +45,295 @@ const SOURCES: { title: string; subtitle: string; status: string; icon: IconName
   },
 ];
 
-const CALENDARS = ['Personal', 'Partiful', 'Work'];
+// Inside Expo Go the system's boxes and settings belong to Expo Go, not to Qevrion.
+const IN_EXPO_GO = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-const STEPS = ['source', 'calendars', 'result'] as const;
-type Step = (typeof STEPS)[number];
+type Stage =
+  | { step: 'source' }
+  /** Calendar access is not on. `denied`: iOS will not ask again; only Settings can turn it on. */
+  | { step: 'access'; denied: boolean }
+  | { step: 'calendars'; error?: string }
+  | { step: 'fileError'; message: string }
+  | { step: 'web' }
+  | { step: 'working' }
+  | { step: 'result'; result: ImportResult; repeating: number };
 
-// Import: source picker, calendar picker, result summary.
-// ponytail: all three steps show sample data. Round 3 reads the real calendar and files.
+/** Which of the three bars each stage lights. */
+const BAR: Record<Stage['step'], number> = {
+  source: 0,
+  access: 1,
+  calendars: 1,
+  fileError: 1,
+  web: 1,
+  working: 2,
+  result: 2,
+};
+
+/** `events` is null when the events could not be counted; the calendar can still be chosen. */
+type CalendarRow = { id: string; title: string; account: string; events: number | null; partiful: number };
+
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong.');
+const say = (text: string) => AccessibilityInfo.announceForAccessibility(text);
+const onDate = (ms: number) =>
+  new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+/**
+ * The phone's calendars, each with how many events a sync would find in it. One read
+ * for all. If the counting fails the list still comes back, without counts.
+ */
+async function readCalendarList(): Promise<CalendarRow[]> {
+  const listed = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+  const rows = new Map(
+    listed.map((calendar): [string, CalendarRow] => [
+      calendar.id,
+      {
+        id: calendar.id,
+        title: calendar.title || 'Untitled calendar',
+        account: calendar.source?.name ?? '',
+        events: null,
+        partiful: 0,
+      },
+    ]),
+  );
+  if (rows.size === 0) return [];
+  const { from, to } = syncWindow();
+  let events: Calendar.Event[];
+  try {
+    events = await Calendar.getEventsAsync([...rows.keys()], new Date(from), new Date(to));
+  } catch {
+    return [...rows.values()];
+  }
+  rows.forEach((row) => (row.events = 0));
+  for (const event of events) {
+    const row = rows.get(event.calendarId);
+    // Counted the way a sync brings them in, so a cancelled event is not.
+    if (!row || row.events === null || !toImported(event)) continue;
+    row.events++;
+    if (isPartifulEvent(event)) row.partiful++;
+  }
+  return [...rows.values()];
+}
+
+// Import: where the events are, which calendars, then what changed.
 export default function Import() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>('source');
-  const [source, setSource] = useState(0);
-  const [chosen, setChosen] = useState<string[]>(['Personal', 'Partiful']);
-  const [onlyPartiful, setOnlyPartiful] = useState(false);
+  // Settings' "Calendar file" row opens this screen with the file already chosen.
+  const params = useLocalSearchParams<{ source?: string }>();
+  const [stage, setStage] = useState<Stage>({ step: 'source' });
+  const [source, setSource] = useState(params.source === 'file' ? 1 : 0);
+  // Whether calendars were chosen before, so that all of them can be let go of.
+  const [connected] = useState(() => getSettings().importCalendarIds.length > 0);
+  // Null while the list is being read.
+  const [calendars, setCalendars] = useState<CalendarRow[] | null>(null);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [onlyPartiful, setOnlyPartiful] = useState(() => getSettings().onlyPartifulLinks);
+  // Set while the file picker opens, so a second tap cannot open another.
+  const picking = useRef(false);
+  const { from, to } = syncWindow();
 
-  const toggle = (name: string) =>
+  const showCalendars = () => {
+    setCalendars(null);
+    setStage({ step: 'calendars' });
+  };
+
+  // Reads the list each time the calendar step is entered afresh.
+  useEffect(() => {
+    if (stage.step !== 'calendars' || stage.error) return;
+    let current = true;
+    readCalendarList().then(
+      (rows) => {
+        if (!current) return;
+        const ids = rows.map((row) => row.id);
+        const saved = getSettings().importCalendarIds.filter((id) => ids.includes(id));
+        // The first time, the calendars that hold Partiful events come ticked.
+        setChosen(saved.length > 0 ? saved : rows.filter((row) => row.partiful > 0).map((row) => row.id));
+        setCalendars(rows);
+        say(`${count(rows.length, 'calendar')} found`);
+      },
+      (error: unknown) => current && setStage({ step: 'calendars', error: messageOf(error) }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [stage]);
+
+  // A problem shown on screen is read out too, since VoiceOver stays where it was.
+  useEffect(() => {
+    if (stage.step === 'calendars' && stage.error) say(stage.error);
+    if (stage.step === 'fileError') say(stage.message);
+  }, [stage]);
+
+  // After a no, access can only be turned on in Settings. Coming back from there is
+  // checked here, so the list opens without another tap.
+  const denied = stage.step === 'access' && stage.denied;
+  useEffect(() => {
+    if (!denied) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      Calendar.getCalendarPermissionsAsync()
+        .then((access) => {
+          if (!access.granted) return;
+          setCalendars(null);
+          setStage({ step: 'calendars' });
+        })
+        .catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [denied]);
+
+  const finish = (result: ImportResult, repeating: number) => {
+    setStage({ step: 'result', result, repeating });
+    AccessibilityInfo.announceForAccessibility(
+      `Import finished. ${result.added} added, ${result.updated} updated.`,
+    );
+  };
+
+  const openCalendar = async () => {
+    try {
+      // Only looks. The system box comes later, from "Allow calendar access", once
+      // this screen has said why.
+      const access = await Calendar.getCalendarPermissionsAsync();
+      if (access.granted) showCalendars();
+      else setStage({ step: 'access', denied: !access.canAskAgain });
+    } catch (error) {
+      setStage({ step: 'calendars', error: messageOf(error) });
+    }
+  };
+
+  const allowAccess = async () => {
+    try {
+      const access = await Calendar.requestCalendarPermissionsAsync();
+      // iOS asks only once. Any answer but yes, "add events only" included, leaves
+      // Settings as the only way, so the button that asked is not offered again.
+      if (access.granted) showCalendars();
+      else setStage({ step: 'access', denied: true });
+    } catch (error) {
+      setStage({ step: 'calendars', error: messageOf(error) });
+    }
+  };
+
+  const pickFile = async () => {
+    if (picking.current) return;
+    picking.current = true;
+    let picked: DocumentPicker.DocumentPickerResult;
+    try {
+      // ponytail: any file can be picked, because whether iOS lets an .ics file be
+      // tapped under "text/calendar" is not checked yet; the reader refuses anything
+      // that is not a calendar. Narrow the type once that is tried on a phone.
+      picked = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+    } catch {
+      setStage({ step: 'fileError', message: 'The file picker could not be opened. Please try again.' });
+      return;
+    } finally {
+      picking.current = false;
+    }
+    const file = picked.canceled ? undefined : picked.assets[0];
+    if (!file) return setStage({ step: 'source' });
+    setStage({ step: 'working' });
+    try {
+      const { repeating, ...result } = await importFile(file.uri);
+      finish(result, repeating);
+    } catch (error) {
+      setStage({ step: 'fileError', message: messageOf(error) });
+    }
+  };
+
+  const importCalendars = async () => {
+    updateSettings({ importCalendarIds: chosen, onlyPartifulLinks: onlyPartiful });
+    setStage({ step: 'working' });
+    try {
+      const result = await syncCalendars({ force: true });
+      // Nothing could be read: access, or the calendars, went while choosing. Going
+      // back over the steps shows what is there now.
+      if (!result) return openCalendar();
+      finish(result, 0);
+    } catch (error) {
+      setStage({ step: 'calendars', error: messageOf(error) });
+    }
+  };
+
+  const stopReading = () => {
+    updateSettings({ importCalendarIds: [] });
+    router.back();
+  };
+
+  const toggle = (id: string) =>
     setChosen((current) =>
-      current.includes(name) ? current.filter((item) => item !== name) : [...current, name],
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
     );
 
-  const footer = {
-    source: <PrimaryButton label="Continue" onPress={() => setStep('calendars')} />,
-    calendars: <PrimaryButton label="Import events" onPress={() => setStep('result')} />,
-    result: <PrimaryButton label="Done" onPress={() => router.back()} />,
-  }[step];
+  const back = () => setStage({ step: 'source' });
+
+  const footer = (() => {
+    switch (stage.step) {
+      case 'source':
+        return (
+          <PrimaryButton
+            label="Continue"
+            onPress={() => {
+              if (Platform.OS === 'web') setStage({ step: 'web' });
+              else if (source === 0) openCalendar();
+              else pickFile();
+            }}
+          />
+        );
+      case 'access':
+        return (
+          <>
+            {stage.denied ? (
+              <PrimaryButton label="Open Settings" onPress={() => Linking.openSettings().catch(() => {})} />
+            ) : (
+              <PrimaryButton label="Allow calendar access" onPress={allowAccess} />
+            )}
+            <SecondaryButton label="Not now" onPress={back} />
+          </>
+        );
+      case 'calendars':
+        if (stage.error) return <PrimaryButton label="Try again" onPress={openCalendar} />;
+        if (!calendars) return undefined;
+        if (calendars.length === 0) return <SecondaryButton label="Back" onPress={back} />;
+        if (chosen.length === 0 && connected) {
+          return (
+            <>
+              <Txt variant="caption" color="textSecondary" style={styles.centered}>
+                Events already brought in stay here.
+              </Txt>
+              <PrimaryButton label="Stop reading calendars" onPress={stopReading} />
+            </>
+          );
+        }
+        return (
+          <>
+            {chosen.length === 0 ? (
+              <Txt variant="caption" color="textSecondary" style={styles.centered}>
+                Tick at least one calendar to import.
+              </Txt>
+            ) : null}
+            <PrimaryButton
+              label="Import events"
+              disabled={chosen.length === 0}
+              onPress={importCalendars}
+            />
+          </>
+        );
+      case 'fileError':
+        return <PrimaryButton label="Choose another file" onPress={pickFile} />;
+      case 'web':
+        return <SecondaryButton label="Back" onPress={back} />;
+      case 'working':
+        return undefined;
+      case 'result':
+        return <PrimaryButton label="Done" onPress={() => router.back()} />;
+    }
+  })();
 
   return (
     <Screen glow sheet footer={footer}>
       <ScreenHeader leading="close" title="Import" />
-      <StepBars count={STEPS.length} current={STEPS.indexOf(step)} />
+      <StepBars count={3} current={BAR[stage.step]} />
 
-      {step === 'source' ? (
+      {stage.step === 'source' ? (
         <>
           <SectionLabel style={styles.groupLabel}>Where are your events?</SectionLabel>
           <View style={styles.stack}>
@@ -86,24 +360,88 @@ export default function Import() {
         </>
       ) : null}
 
-      {step === 'calendars' ? (
+      {stage.step === 'access' && !stage.denied ? (
+        <View style={styles.block}>
+          <Txt variant="heading" accessibilityRole="header">
+            Read your calendar
+          </Txt>
+          <Txt color="textSecondary">
+            Qevrion reads your iPhone calendar to bring your events in, and reads it again each
+            time you open the app. Your events stay on your phone; only their addresses go to
+            Apple Maps, to find them on the map.
+          </Txt>
+          {IN_EXPO_GO ? (
+            <Txt variant="bodySmall" color="textTertiary">
+              The box that asks will say “Expo”, because Qevrion runs inside Expo Go for now.
+            </Txt>
+          ) : null}
+        </View>
+      ) : null}
+
+      {stage.step === 'access' && stage.denied ? (
+        <View style={styles.block}>
+          <Txt variant="heading" accessibilityRole="header">
+            Calendar access is off
+          </Txt>
+          <Txt color="textSecondary">
+            To turn it on, tap Open Settings, then Calendars, and choose Full Access. Then come
+            back here.
+          </Txt>
+          {IN_EXPO_GO ? (
+            <Txt variant="bodySmall" color="textTertiary">
+              Settings opens on Expo Go’s page, because Qevrion runs inside Expo Go for now. In the
+              Settings app it is under Expo Go, then Calendars.
+            </Txt>
+          ) : null}
+        </View>
+      ) : null}
+
+      {stage.step === 'calendars' && stage.error ? (
+        <View style={styles.block}>
+          <Txt variant="title" accessibilityRole="header">
+            Could not read your calendars
+          </Txt>
+          <Txt color="textSecondary">{stage.error}</Txt>
+        </View>
+      ) : null}
+
+      {stage.step === 'calendars' && !stage.error && !calendars ? (
+        <View style={[styles.block, styles.waiting]}>
+          <ActivityIndicator color={colors.textSecondary} />
+          <Txt color="textSecondary">Reading your calendars…</Txt>
+        </View>
+      ) : null}
+
+      {stage.step === 'calendars' && !stage.error && calendars?.length === 0 ? (
+        <View style={styles.block}>
+          <Txt variant="title" accessibilityRole="header">
+            No calendars found
+          </Txt>
+          <Txt color="textSecondary">
+            This iPhone has no calendars to read. You can still bring events in from a calendar
+            file, or add them by hand.
+          </Txt>
+        </View>
+      ) : null}
+
+      {stage.step === 'calendars' && !stage.error && calendars && calendars.length > 0 ? (
         <>
-          <View style={styles.labelRow}>
-            <SectionLabel>Calendars to read</SectionLabel>
-            <SampleBadge />
-          </View>
+          <SectionLabel style={styles.groupLabel}>Calendars to read</SectionLabel>
           <Card padded={false}>
-            {CALENDARS.map((name, index) => {
-              const selected = chosen.includes(name);
+            {calendars.map((calendar, index) => {
+              const selected = chosen.includes(calendar.id);
               return (
                 <ListRow
-                  key={name}
-                  title={name}
-                  status={selected ? 'Included' : undefined}
-                  subtitle={selected ? undefined : 'Not included'}
+                  key={calendar.id}
+                  title={calendar.title}
+                  subtitle={[calendar.account, calendar.events === null ? '' : count(calendar.events, 'event')]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  status={calendar.partiful > 0 ? `${calendar.partiful} from Partiful` : undefined}
                   divider={index > 0}
+                  selected={selected}
                   right={selected ? <Icon name="check" size={18} color={colors.accent} /> : <View />}
-                  onPress={() => toggle(name)}
+                  onPress={() => toggle(calendar.id)}
                 />
               );
             })}
@@ -111,10 +449,12 @@ export default function Import() {
 
           <SectionLabel style={styles.groupLabel}>What to bring in</SectionLabel>
           <Card padded={false}>
-            <ListRow title="Date range" subtitle="30 days back to 12 months ahead" />
             <ListRow
-              title="Only Partiful events"
-              subtitle="Events with a partiful.com link"
+              title="Date range"
+              subtitle={`30 days back to 12 months ahead: ${onDate(from)} to ${onDate(to)}`}
+            />
+            <ListRow
+              title="Only events with a partiful.com link"
               divider
               right={
                 <Switch
@@ -122,35 +462,95 @@ export default function Import() {
                   onValueChange={setOnlyPartiful}
                   accessibilityLabel="Only events with a partiful.com link"
                   trackColor={{ true: colors.accent, false: colors.surfaceRaised }}
+                  ios_backgroundColor={colors.surfaceRaised}
                 />
               }
             />
           </Card>
+          <Txt variant="caption" color="textTertiary" style={styles.note}>
+            Your choice is kept. These calendars are read again each time you open Qevrion, or
+            pull down on Home.
+          </Txt>
         </>
       ) : null}
 
-      {step === 'result' ? (
-        <>
-          <Txt variant="heading" accessibilityRole="header">
-            All set.
+      {stage.step === 'fileError' ? (
+        <View style={styles.block}>
+          <Txt variant="title" accessibilityRole="header">
+            This file could not be imported
           </Txt>
-          <View style={styles.labelRow}>
-            <Txt color="textSecondary">Here is what changed.</Txt>
-            <SampleBadge />
-          </View>
-          <Card>
-            <StatGrid
-              items={[
-                { label: 'Added', value: '8' },
-                { label: 'Updated', value: '2' },
-                { label: 'Skipped', value: '1' },
-                { label: 'Calendars read', value: String(chosen.length) },
-              ]}
-            />
-          </Card>
-        </>
+          <Txt color="textSecondary">{stage.message}</Txt>
+        </View>
       ) : null}
+
+      {stage.step === 'web' ? (
+        <View style={styles.block}>
+          <Txt variant="title" accessibilityRole="header">
+            Import works on the iPhone
+          </Txt>
+          <Txt color="textSecondary">
+            Reading your calendar and calendar files needs the app on your iPhone. This preview in
+            a browser can only add events by hand.
+          </Txt>
+        </View>
+      ) : null}
+
+      {stage.step === 'working' ? (
+        <View style={[styles.block, styles.waiting]}>
+          <ActivityIndicator color={colors.textSecondary} />
+          <Txt color="textSecondary">Importing…</Txt>
+        </View>
+      ) : null}
+
+      {stage.step === 'result' ? <Result result={stage.result} repeating={stage.repeating} /> : null}
     </Screen>
+  );
+}
+
+function Result({ result, repeating }: { result: ImportResult; repeating: number }) {
+  const { added, updated, unchanged, skipped } = result;
+  return (
+    <>
+      <Txt variant="heading" accessibilityRole="header" style={styles.groupLabel}>
+        All set.
+      </Txt>
+      <Txt color="textSecondary" style={styles.lead}>
+        Here is what changed.
+      </Txt>
+      <Card>
+        <StatGrid
+          items={[
+            { label: 'Added', value: String(added) },
+            { label: 'Updated', value: String(updated) },
+            { label: 'Unchanged', value: String(unchanged) },
+            { label: 'Skipped', value: String(skipped) },
+          ]}
+        />
+      </Card>
+      <View style={styles.notes}>
+        {added + updated + unchanged + skipped + repeating === 0 ? (
+          <Txt variant="bodySmall" color="textSecondary">
+            Nothing was found to bring in.
+          </Txt>
+        ) : null}
+        {skipped > 0 ? (
+          <Txt variant="bodySmall" color="textSecondary">
+            Skipped events were cancelled, left out by the Partiful switch, deleted here by you
+            before, or could not be read.
+          </Txt>
+        ) : null}
+        {repeating > 0 ? (
+          <Txt variant="bodySmall" color="textSecondary">
+            {`${count(repeating, 'repeating event')} in this file ${repeating === 1 ? 'was' : 'were'} left out. Repeating events can be brought in through the iPhone Calendar.`}
+          </Txt>
+        ) : null}
+        {added + updated > 0 ? (
+          <Txt variant="bodySmall" color="textSecondary">
+            Places are being found on the map while Qevrion is open.
+          </Txt>
+        ) : null}
+      </View>
+    </>
   );
 }
 
@@ -159,15 +559,29 @@ const styles = StyleSheet.create({
     marginTop: space[6],
     marginBottom: space[3],
   },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space[3],
-    marginTop: space[2],
-    marginBottom: space[3],
+  lead: {
+    marginBottom: space[4],
   },
   stack: {
+    gap: space[3],
+  },
+  block: {
+    marginTop: space[6],
+    gap: space[3],
+  },
+  waiting: {
+    alignItems: 'center',
+    paddingVertical: space[8],
+  },
+  centered: {
+    textAlign: 'center',
+  },
+  note: {
+    marginTop: space[3],
+    marginHorizontal: space[2],
+  },
+  notes: {
+    marginTop: space[4],
     gap: space[3],
   },
 });

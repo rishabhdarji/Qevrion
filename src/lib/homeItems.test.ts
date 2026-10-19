@@ -33,6 +33,10 @@ function event(id: string, startsAt: number, extra: Partial<QevrionEvent> = {}):
     notes: '',
     keyDetails: [],
     photo: null,
+    lat: null,
+    lng: null,
+    geocodeStatus: 'pending',
+    removedFromSource: false,
     isSample: true,
     cover: ['#000000', '#000000'],
     hasConflict: false,
@@ -206,6 +210,12 @@ describe('selectNextEvent', () => {
   it('is nothing when every event has started', () => {
     expect(selectNextEvent(sorted, week.startsAt)).toBeUndefined();
     expect(selectNextEvent([], now)).toBeUndefined();
+  });
+
+  it('passes over an event its calendar no longer has, which stays in the list', () => {
+    const gone = { ...soon, removedFromSource: true };
+    expect(selectNextEvent([past, gone, week], now)).toBe(week);
+    expect(home([gone, week])).toEqual(['label:Next up', 'hero:week', 'label:This week', 'row:soon']);
   });
 });
 

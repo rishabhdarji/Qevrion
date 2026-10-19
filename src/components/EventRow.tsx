@@ -5,7 +5,7 @@ import { colors, radius, size, space } from '@/theme';
 import type { QevrionEvent } from '@/types';
 
 import { PressableScale } from './PressableScale';
-import { SampleBadge } from './SampleBadge';
+import { RemovedBadge, SampleBadge } from './SampleBadge';
 import { Txt } from './Txt';
 
 type Props = {
@@ -26,7 +26,7 @@ export function EventRow({ event, muted = false, onPress }: Props) {
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`${[event.title, formatDay(event.startsAt), ...detail].join(', ')}${event.isSample ? ', sample data' : ''}`}
+      accessibilityLabel={`${[event.title, formatDay(event.startsAt), ...detail].join(', ')}${event.isSample ? ', sample data' : ''}${event.removedFromSource ? ', removed from calendar' : ''}`}
       pressedScale={0.985}
       style={styles.row}
       onPress={onPress ? () => onPress(event) : undefined}
@@ -50,6 +50,7 @@ export function EventRow({ event, muted = false, onPress }: Props) {
             {event.title}
           </Txt>
           {event.isSample ? <SampleBadge /> : null}
+          {event.removedFromSource ? <RemovedBadge /> : null}
         </View>
         <Txt variant="bodySmall" color="textSecondary" numberOfLines={1}>
           {detail.join(' · ')}

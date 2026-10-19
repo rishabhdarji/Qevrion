@@ -19,7 +19,7 @@ const PAGES = [
   },
   {
     title: 'Bring in\nyour events.',
-    body: 'From your iPhone calendar, including what Partiful adds there, or an .ics file. Nothing leaves your phone.',
+    body: 'From your iPhone calendar, including what Partiful adds there, or an .ics file. Your events stay on your phone; only their addresses go to Apple Maps, to find them on the map.',
     primary: 'Import events',
   },
   {
@@ -110,8 +110,8 @@ export default function Onboarding() {
   const [page, setPage] = useState(0);
   const [footerHeight, setFooterHeight] = useState(220);
 
-  // ponytail: nothing is asked for or imported here yet. The real calendar import is
-  // Round 3 and the notification permission is Round 6; until then both buttons move on.
+  // ponytail: no permission is asked for here yet. The notification permission is
+  // Round 6; until then "Turn on reminders" only moves on.
   const finish = () => {
     updateSettings({ onboardingDone: true });
     router.replace('/upcoming');
@@ -173,7 +173,15 @@ export default function Onboarding() {
         <View style={styles.steps}>
           <StepBars count={PAGES.length} current={page} />
         </View>
-        <PrimaryButton label={PAGES[page].primary} onPress={() => goTo(page + 1)} />
+        <PrimaryButton
+          label={PAGES[page].primary}
+          onPress={() => {
+            // Page 2 opens the import screen over the tour, which moves on underneath,
+            // so closing the import lands on the last page.
+            if (page === 1) router.push('/import');
+            goTo(page + 1);
+          }}
+        />
         <SecondaryButton
           label="Not now"
           // On the first page "Not now" skips the tour; after that it skips the step.

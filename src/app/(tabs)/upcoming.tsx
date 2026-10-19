@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Chip } from '@/components/Chip';
 import { EmptyState } from '@/components/EmptyState';
@@ -9,11 +9,13 @@ import { EVENT_ROW_TEXT_INSET, EventRow } from '@/components/EventRow';
 import { Icon } from '@/components/Icon';
 import { Pill } from '@/components/Pill';
 import { Screen, useScreenPadding } from '@/components/Screen';
+import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
 import { useEvents } from '@/data/events';
 import { useEventClock } from '@/lib/countdown';
 import { buildHomeItems, FILTERS, type Filter, type ListItem } from '@/lib/homeItems';
+import { useSyncRefresh } from '@/lib/sync';
 import { colors, radius, size, space, type } from '@/theme';
 import type { QevrionEvent } from '@/types';
 
@@ -119,6 +121,7 @@ export default function Upcoming() {
   const [filter, setFilter] = useState<Filter>('All');
   // Moves the hero on the moment an event starts, and a finished one off to Archive.
   const now = useEventClock(events);
+  const refresh = useSyncRefresh();
 
   const items = buildHomeItems(events, now, query, filter);
   const upcoming = events.filter((event) => event.endsAt > now);
@@ -170,10 +173,12 @@ export default function Upcoming() {
           browsing ? (
             <EmptyState
               title="Your calendar is clear"
-              body="Add an event and it shows up here, with a countdown to the next one."
-              actionLabel="Add an event"
-              onAction={() => router.push('/event/edit')}
-            />
+              body="Import your events or add one, and they show up here, with a countdown to the next one."
+              actionLabel="Import events"
+              onAction={() => router.push('/import')}
+            >
+              <SecondaryButton label="Add an event" onPress={() => router.push('/event/edit')} />
+            </EmptyState>
           ) : (
             <EmptyState
               {...EMPTY[query.trim() ? 'All' : filter]}
@@ -184,6 +189,14 @@ export default function Upcoming() {
               }}
             />
           )
+        }
+        refreshControl={
+          // Pushed below the clock, where the top fade would otherwise hide it.
+          <RefreshControl
+            {...refresh}
+            tintColor={colors.textSecondary}
+            progressViewOffset={padding.paddingTop}
+          />
         }
         contentContainerStyle={padding}
         keyboardShouldPersistTaps="handled"

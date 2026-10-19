@@ -1,6 +1,6 @@
 # Qevrion status
 
-Last updated: Round 2b (a photo for each event) is built and waiting for the owner's check on the iPhone (11 Oct 2026). Round 2 was confirmed on the iPhone on 11 Oct 2026. Version 0.0.1.
+Last updated: Round 3 (import from Calendar and .ics) is built and waiting for the owner's check on the iPhone (18 Oct 2026). Round 2b (a photo for each event) was confirmed and merged on 11 Oct 2026, as was Round 2. Version 0.0.1.
 
 ## What works
 
@@ -91,3 +91,18 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 
 - Node 24.20.0, npm 11.19.1, Git 2.56.0, GitHub CLI 2.102.0.
 - GitHub CLI is signed in over HTTPS (confirmed 10 Oct 2026) with the `repo` and `workflow` scopes, which is what Round 8 needs to create the repo and push the CI workflow.
+
+## Round 3: import (built, waiting for the owner's check)
+
+- **What it does.** Import screen: iPhone Calendar (pick calendars, each showing how many events it holds and how many are from Partiful; calendars with Partiful events are pre-ticked the first time), a fixed window of 30 days back to 12 months ahead, an "Only events with a partiful.com link" switch, and a result of Added, Updated, Unchanged, Skipped. Or an `.ics` file. Untick everything and "Stop reading calendars" lets calendars go; events already in stay.
+- **Re-sync.** On every app open (at most once a minute) and on pull-to-refresh on Home and Archive. Matching is by calendar and event id (plus the original start for an occurrence of a repeating event), then by title and start within the calendars read. A sync never writes notes, checklist, tags, reminders, photo or key details.
+- **Removed from calendar.** An event missing from a calendar that answered, inside the window, gets a notice and a "Removed" badge, and no longer counts for conflicts or the big card. A calendar that answers with nothing marks nothing. Deleting an imported event keeps only its key, title and times, so a sync does not bring it back.
+- **Places.** Addresses of upcoming events are looked up with the iPhone's own geocoder (Apple Maps), one at a time, 1.5 s apart, only while the app is open. Each event shows "On the map", "Not found on the map" or "Not on the map yet". An address is asked once; samples, past and removed events, and anything containing a link are never sent.
+- **Calendar files.** Up to 2 MB and 2,000 events. Repeating events in a file are left out and counted (the iPhone Calendar path brings repeats in). A file's own time-zone rules are used only when they are an ordinary daylight-saving pattern, because the parser can be made to loop forever otherwise. Parser: `ical.js` 2.2.1 (MPL-2.0, unmodified, zero dependencies; source at github.com/kewisch/ical.js).
+- **Calendar package.** In SDK 57 the main `expo-calendar` entry point throws inside Expo Go; the app imports `expo-calendar/legacy`, which works there (confirmed on the iPhone with a temporary debug screen, since removed).
+- **Schema version 3** adds `deletedAt` and a unique index on source + key; the upgrade drops a duplicate key first so it can never stop the app opening.
+- **Reviews.** Two system-design and security reviews and one UI/UX review; every finding was fixed (freezing and oversized `.ics` files, links in addresses, deceptive links, control characters, look-alike matching, wording that promised nothing leaves the phone). 221 tests in six time zones.
+- **Only the phone can prove:** the file picker letting `.ics` files be tapped (it accepts any file and checks the content), where the pull-to-refresh spinner sits, whether Expo Go restarts when calendar access is changed in Settings, Apple's geocoder pacing, and real Partiful events' shape.
+- **Packages added:** `expo-calendar`, `expo-document-picker`, `expo-location`, `ical.js`. Expo packages moved to SDK 57's latest patch releases.
+- **SDK 58.** Released 15 Oct 2026 (expo.dev/changelog/sdk-58). Expo Go for it reaches the App Store "within a few weeks" and opens only SDK 58 projects. Plan a short upgrade step (`npx expo install expo@^58.0.0 --fix`) after Round 3.
+- **Worktree.** Built in `../Qevrion-round-3` because other work was going on in the main folder.

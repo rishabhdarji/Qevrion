@@ -183,6 +183,21 @@ export default function EditEvent() {
     >
       <ScreenHeader leading="close" title={id ? 'Edit event' : 'New event'} />
 
+      {/* A sync writes over what the calendar owns (src/lib/importPlan.ts), so a
+          change made here to one of those would not last. */}
+      {event?.source === 'calendar' ? (
+        <Txt variant="caption" color="textSecondary" style={styles.fromCalendar}>
+          Title, time, place, host and link come from your iPhone Calendar and are refreshed on
+          each sync. Your notes and photo stay yours.
+        </Txt>
+      ) : null}
+      {event?.source === 'ics' ? (
+        <Txt variant="caption" color="textSecondary" style={styles.fromCalendar}>
+          Title, time, place, host and link come from the calendar file and are refreshed if you
+          import it again. Your notes and photo stay yours.
+        </Txt>
+      ) : null}
+
       {/* With no photo yet, a tap anywhere on the banner opens the picker, not only on
           the small button. VoiceOver still lands on the button alone. */}
       <Pressable
@@ -313,6 +328,9 @@ const styles = StyleSheet.create({
   },
   footerProblem: {
     textAlign: 'center',
+  },
+  fromCalendar: {
+    marginBottom: space[4],
   },
   banner: {
     // Wide and short, like the header it becomes on the event's own screen.

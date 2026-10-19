@@ -67,9 +67,12 @@ function grouped(
   return items;
 }
 
-/** The next event that has not started yet. `events` must be sorted by start. */
+/**
+ * The next event that has not started yet. `events` must be sorted by start. One its
+ * calendar no longer has is passed over: it stays in the list, with its badge.
+ */
 export function selectNextEvent(events: QevrionEvent[], now: number): QevrionEvent | undefined {
-  return events.find((event) => event.startsAt > now);
+  return events.find((event) => event.startsAt > now && !event.removedFromSource);
 }
 
 /** The next moment after `now` at which an event starts or ends. Infinity when none does. */

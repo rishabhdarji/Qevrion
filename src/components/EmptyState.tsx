@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { colors, space } from '@/theme';
@@ -11,9 +12,11 @@ type Props = {
   body: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** More buttons, under the first one. */
+  children?: ReactNode;
 };
 
-export function EmptyState({ title, body, actionLabel, onAction }: Props) {
+export function EmptyState({ title, body, actionLabel, onAction, children }: Props) {
   return (
     <View style={styles.root}>
       <QevrionMark size={40} color={colors.decoration} />
@@ -23,9 +26,10 @@ export function EmptyState({ title, body, actionLabel, onAction }: Props) {
       <Txt variant="bodySmall" color="textSecondary" style={styles.center}>
         {body}
       </Txt>
-      {actionLabel ? (
+      {actionLabel || children ? (
         <View style={styles.action}>
-          <SecondaryButton label={actionLabel} onPress={onAction} />
+          {actionLabel ? <SecondaryButton label={actionLabel} onPress={onAction} /> : null}
+          {children}
         </View>
       ) : null}
     </View>
@@ -44,6 +48,7 @@ const styles = StyleSheet.create({
   },
   action: {
     alignSelf: 'stretch',
+    gap: space[3],
     marginTop: space[4],
   },
 });

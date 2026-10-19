@@ -15,6 +15,17 @@ export function SampleBadge() {
   );
 }
 
+/** An imported event its calendar no longer has. Quieter than Sample: the event's screen says more. */
+export function RemovedBadge() {
+  return (
+    <View style={[styles.badge, styles.removed]} accessible accessibilityLabel="Removed from calendar">
+      <Txt variant="badge" color="textSecondary" maxFontSizeMultiplier={1.2} style={styles.text}>
+        Removed
+      </Txt>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
@@ -22,6 +33,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.inner,
     paddingHorizontal: space[2],
     paddingVertical: 2,
+  },
+  removed: {
+    backgroundColor: colors.surfaceRaised,
   },
   text: {
     // Letter-spacing adds space after the last letter too; pull it back so the word
