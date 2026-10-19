@@ -13,7 +13,15 @@ import { getRouteKey } from './secrets';
 
 export type RouteAnswer =
   | { kind: 'route'; route: WalkingRoute; kept: boolean }
-  | { kind: 'straight'; problem: RouteProblem; from: LatLng; to: LatLng; at: number };
+  | {
+      kind: 'straight';
+      problem: RouteProblem;
+      from: LatLng;
+      to: LatLng;
+      at: number;
+      /** Whether the phone said it was online when this was worked out. */
+      online: boolean;
+    };
 
 /** Further than this in a straight line is not a walk, and is not asked for. */
 export const TOO_FAR_M = 30_000;
@@ -28,13 +36,27 @@ const SAME_VENUE_M = 25;
 export async function walkingRoute(
   from: LatLng,
   to: LatLng,
-  { key, fetcher, now = Date.now() }: { key: string | null; fetcher?: typeof fetch; now?: number },
+  {
+    key,
+    fetcher,
+    now = Date.now(),
+    online = true,
+  }: { key: string | null; fetcher?: typeof fetch; now?: number; online?: boolean },
 ): Promise<RouteAnswer> {
-  const straight = (problem: RouteProblem): RouteAnswer => ({ kind: 'straight', problem, from, to, at: now });
+  const straight = (problem: RouteProblem): RouteAnswer => ({
+    kind: 'straight',
+    problem,
+    from,
+    to,
+    at: now,
+    online,
+  });
   if (distance(from, to) > TOO_FAR_M) return straight('tooFar');
   const kept = db.findRoute(from, to, now);
   if (kept) return { kind: 'route', route: kept, kept: true };
   if (!key) return straight('noKey');
+  // The phone already says it is offline: no point waiting for the question to fail.
+  if (!online) return straight('offline');
   try {
     const route = await fetchRoute(from, to, key, { fetcher, now });
     db.keepRoute(route);
@@ -57,6 +79,7 @@ export function needsNewAnswer(
   me: LatLng,
   venue: LatLng,
   now: number,
+  online = true,
 ): boolean {
   if (!answer) return true;
   const to = answer.kind === 'route' ? answer.route.to : answer.to;
@@ -66,6 +89,8 @@ export function needsNewAnswer(
     return off > OFF_ROUTE_M && now - answer.route.fetchedAt >= ASK_EVERY_MS;
   }
   if (answer.problem === 'tooFar') return distance(me, venue) <= TOO_FAR_M;
+  // Back online after a straight line given for being offline: ask now, not later.
+  if (answer.problem === 'offline') return online && (online !== answer.online || now - answer.at >= ASK_EVERY_MS);
   if (PASSING.includes(answer.problem)) return now - answer.at >= ASK_EVERY_MS;
   // No key, a key refused, or no route: asking again from a little further on would
   // give the same answer. Coming back to the screen starts afresh.
@@ -76,7 +101,11 @@ export function needsNewAnswer(
  * The walking route from `me` to `venue`, kept up to date as `me` moves. Null while
  * the first answer is on its way, or when either point is not known.
  */
-export function useWalkingRoute(me: LatLng | null, venue: LatLng | null): RouteAnswer | null {
+export function useWalkingRoute(
+  me: LatLng | null,
+  venue: LatLng | null,
+  online: boolean,
+): RouteAnswer | null {
   const [answer, setAnswer] = useState<RouteAnswer | null>(null);
   const asking = useRef(false);
   // Bumped when a question is answered, when a passing problem may have passed, and
@@ -103,10 +132,10 @@ export function useWalkingRoute(me: LatLng | null, venue: LatLng | null): RouteA
 
   useEffect(() => {
     if (!me || !venue || !focused.current || asking.current) return;
-    if (!needsNewAnswer(answer, me, venue, Date.now())) return;
+    if (!needsNewAnswer(answer, me, venue, Date.now(), online)) return;
     asking.current = true;
     getRouteKey()
-      .then((key) => walkingRoute(me, venue, { key }))
+      .then((key) => walkingRoute(me, venue, { key, online }))
       .then((next) => {
         const to = next.kind === 'route' ? next.route.to : next.to;
         const still = latestVenue.current;
@@ -117,7 +146,7 @@ export function useWalkingRoute(me: LatLng | null, venue: LatLng | null): RouteA
         asking.current = false;
         if (focused.current) setRound((n) => n + 1);
       });
-  }, [me, venue, answer, round]);
+  }, [me, venue, answer, round, online]);
 
   // Standing still with no connection: try again once the wait is over, so turning
   // Wi-Fi back on brings the route without having to move.

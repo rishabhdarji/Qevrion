@@ -56,6 +56,16 @@ describe('walkingRoute', () => {
     });
   });
 
+  it('does not try at all when the phone says it is offline', async () => {
+    const fetcher = answering();
+    expect(await walkingRoute(me, venue, { key: 'k', fetcher, now, online: false })).toMatchObject({
+      kind: 'straight',
+      problem: 'offline',
+      online: false,
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it('still shows a kept route with no connection', async () => {
     await walkingRoute(me, venue, { key: 'k', fetcher: answering(), now });
     expect(await walkingRoute(me, venue, { key: 'k', fetcher: offline(), now: now + 1 })).toMatchObject({
@@ -87,12 +97,17 @@ describe('needsNewAnswer', () => {
     kept: false,
     route: { from: me, to: venue, line, distance: 640, duration: 461, steps: [], fetchedAt } as WalkingRoute,
   });
-  const straight = (problem: Extract<RouteAnswer, { kind: 'straight' }>['problem'], at = now): RouteAnswer => ({
+  const straight = (
+    problem: Extract<RouteAnswer, { kind: 'straight' }>['problem'],
+    at = now,
+    online = true,
+  ): RouteAnswer => ({
     kind: 'straight',
     problem,
     from: me,
     to: venue,
     at,
+    online,
   });
 
   it('asks when there is no answer yet, or the venue has changed', () => {
@@ -117,6 +132,12 @@ describe('needsNewAnswer', () => {
     expect(needsNewAnswer(straight('offline'), me, venue, now + 1000)).toBe(false);
     expect(needsNewAnswer(straight('offline'), me, venue, now + ASK_EVERY_MS)).toBe(true);
     expect(needsNewAnswer(straight('quota'), me, venue, now + ASK_EVERY_MS)).toBe(true);
+  });
+
+  it('waits while the phone is offline, and asks the moment it is back', () => {
+    const offline = straight('offline', now, false);
+    expect(needsNewAnswer(offline, me, venue, now + 99 * ASK_EVERY_MS, false)).toBe(false);
+    expect(needsNewAnswer(offline, me, venue, now + 1000, true)).toBe(true);
   });
 
   it('does not keep asking when the answer would be the same', () => {

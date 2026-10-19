@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { Icon } from '@/components/Icon';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { RouteMap } from '@/components/RouteMap';
@@ -22,6 +23,7 @@ import { formatTime } from '@/lib/dates';
 import { locateVenues } from '@/lib/geocode';
 import { isPlace } from '@/lib/geo';
 import { usePosition, useLocationAccess, type LocationAccess } from '@/lib/location';
+import { useOnline } from '@/lib/network';
 import { appleMapsWalkingUrl, googleMapsWalkingUrl } from '@/lib/maps';
 import { walkSummary } from '@/lib/walkSummary';
 import type { QevrionEvent } from '@/types';
@@ -99,7 +101,8 @@ export default function Navigate() {
     () => (event && isPlace(event) && event.geocodeStatus === 'located' ? { lat: event.lat, lng: event.lng } : null),
     [event],
   );
-  const answer = useWalkingRoute(position, venue);
+  const online = useOnline();
+  const answer = useWalkingRoute(position, venue, online);
 
   // An address still waiting is looked up now, in case the app has not had the chance.
   useEffect(() => {
@@ -143,6 +146,16 @@ export default function Navigate() {
       <Txt color="textSecondary">
         {event.title} · {formatTime(event.startsAt)}
       </Txt>
+
+      {online ? null : (
+        <OfflineBanner
+          body={
+            answer?.kind === 'route'
+              ? 'Showing the route saved earlier; the map itself may not load. Turn on Wi-Fi or mobile data to refresh it.'
+              : 'Turn on Wi-Fi or mobile data to get the walking route. Until then you see a straight line and the direction, and the map may not load.'
+          }
+        />
+      )}
 
       <View style={styles.map}>
         {venue ? (

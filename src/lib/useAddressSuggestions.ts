@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getRouteKey } from '../data/secrets';
 import type { LatLng } from './geo';
 import { placeIfAllowed } from './location';
+import { useOnline } from './network';
 import {
   fetchSuggestions,
   phoneCountry,
@@ -33,13 +34,15 @@ const IDLE: SuggestState = { list: [], source: 'photon', status: 'idle' };
 export function useAddressSuggestions(text: string, active: boolean): SuggestState {
   // Each answer is kept with the question it answers, so one for older text is never shown.
   const [state, setState] = useState<SuggestState & { query: string | null }>({ ...IDLE, query: null });
+  const online = useOnline();
   const current = active ? queryFor(text) : null;
   // Read once, on first use: the key and roughly where the owner is, if already allowed.
   const context = useRef<Promise<{ key: string | null; near: LatLng | null }> | null>(null);
 
   useEffect(() => {
     const query = current;
-    if (!query) return;
+    // Offline: nothing is sent, and the list says so at once (below).
+    if (!query || !online) return;
     const abort = new AbortController();
     const timer = setTimeout(async () => {
       context.current ??= Promise.all([getRouteKey(), placeIfAllowed()]).then(([key, near]) => ({ key, near }));
@@ -70,9 +73,10 @@ export function useAddressSuggestions(text: string, active: boolean): SuggestSta
       clearTimeout(timer);
       abort.abort();
     };
-  }, [current]);
+  }, [current, online]);
 
   if (!current) return IDLE;
+  if (!online) return { list: [], source: state.source, status: 'offline' };
   // While the newest text is still settling, the last list stays up so it does not flicker.
   return { list: state.list, source: state.source, status: state.query === current ? state.status : 'looking' };
 }
