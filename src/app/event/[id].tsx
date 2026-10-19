@@ -113,8 +113,13 @@ export default function EventDetail() {
               icon="pin"
               title={event.locationText}
               subtitle="Walking route"
-              // Sample addresses are invented and never looked up.
-              status={event.isSample ? undefined : ON_MAP[event.geocodeStatus]}
+              // Sample addresses are invented and never looked up, and neither are the
+              // places of events that are over, so those say nothing rather than "yet".
+              status={
+                event.isSample || (event.geocodeStatus === 'pending' && event.endsAt <= Date.now())
+                  ? undefined
+                  : ON_MAP[event.geocodeStatus]
+              }
               divider
               onPress={navigate}
             />
