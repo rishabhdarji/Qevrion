@@ -75,6 +75,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="event/edit" options={{ presentation: 'modal' }} />
         <Stack.Screen name="import" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="route-key" options={{ presentation: 'modal' }} />
         <Stack.Screen
           name="walk/[id]"
           options={{ presentation: 'fullScreenModal', animation: 'fade' }}

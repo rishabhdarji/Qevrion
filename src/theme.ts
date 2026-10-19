@@ -33,10 +33,10 @@ export const colors = {
   overlay: 'rgba(14,14,16,0.55)',
   destructiveTint: 'rgba(240,86,74,0.12)',
 
-  // The drawn map on Navigate until the real map arrives in Round 4.
+  // The soft line under the route on the map.
+  routeHalo: 'rgba(79,179,232,0.22)',
+  // The drawn map that stands in for Apple Maps in the desktop preview.
   mapLand: '#1A2740',
-  mapBlock: '#27375A',
-  mapPark: '#17403F',
   markerRing: '#FFFFFF',
 } as const;
 

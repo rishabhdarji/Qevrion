@@ -1,61 +1,110 @@
 import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { useEffect, useMemo } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
+import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { Icon } from '@/components/Icon';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { SampleBadge } from '@/components/SampleBadge';
+import { RouteMap } from '@/components/RouteMap';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionLabel } from '@/components/SectionLabel';
 import { StatGrid } from '@/components/StatGrid';
 import { Txt } from '@/components/Txt';
+import { getSettings } from '@/data/db';
 import { useEvent } from '@/data/events';
+import { useWalkingRoute } from '@/data/routes';
+import { useNow } from '@/lib/countdown';
 import { formatTime } from '@/lib/dates';
+import { locateVenues } from '@/lib/geocode';
+import { isPlace } from '@/lib/geo';
+import { usePosition, useLocationAccess, type LocationAccess } from '@/lib/location';
 import { appleMapsWalkingUrl, googleMapsWalkingUrl } from '@/lib/maps';
+import { walkSummary } from '@/lib/walkSummary';
+import type { QevrionEvent } from '@/types';
 import { colors, radius, space } from '@/theme';
 
-const WALK_MINUTES = 17;
-const ROUTE = 'M92 86L138 112H266L286 128V226H256L250 262';
-const MINUTE = 60_000;
+/** Why there is no map, when there is none. */
+function whyNoMap(event: QevrionEvent): { title: string; body: string } {
+  if (event.isSample) {
+    return {
+      title: 'A sample event',
+      body: 'Its address is invented, so it is not on the map. Add or import a real event to see a route.',
+    };
+  }
+  if (event.geocodeStatus === 'notFound') {
+    return {
+      title: 'Not found on the map',
+      body: 'Apple Maps could not find this address, so there is no route. The buttons below may still find it.',
+    };
+  }
+  return {
+    title: 'Finding the address',
+    body: 'Apple Maps is looking this address up. It needs a connection; the map appears here once it is found.',
+  };
+}
 
-// ponytail: a drawing, not a map. Round 4 replaces it with Apple Maps, the phone's
-// position and a real walking route.
-function DrawnMap() {
+/** The card that asks for location, just before it is needed, after saying why. */
+function LocationCard({ access, ask }: { access: LocationAccess; ask: () => void }) {
+  if (access === 'checking' || access === 'granted') return null;
+  const [title, body, action, onPress] =
+    access === 'ask'
+      ? [
+          'Walk from where you are',
+          'To draw the route and work out the time, Qevrion needs your location while the app is open. Never in the background.',
+          'Use my location',
+          ask,
+        ]
+      : access === 'denied'
+        ? [
+            'Location is off for Qevrion',
+            'Without it the map shows only the venue. To turn it on, open Settings and choose Location, While Using the App. In Expo Go this setting is under Expo Go.',
+            'Open Settings',
+            () => Linking.openSettings(),
+          ]
+        : [
+            'Location Services are off',
+            'They are off for the whole iPhone. Turn them on in Settings, Privacy & Security, Location Services.',
+            null,
+            null,
+          ];
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 340 300" preserveAspectRatio="xMidYMid slice">
-      <Rect width={340} height={300} fill={colors.mapLand} />
-      <Path d="M-20 250L120 -20h46L26 320z" fill={colors.mapPark} />
-      <Rect x={150} y={26} width={104} height={74} rx={8} fill={colors.mapBlock} />
-      <Rect x={270} y={20} width={90} height={96} rx={8} fill={colors.mapBlock} />
-      <Rect x={130} y={122} width={150} height={92} rx={8} fill={colors.mapBlock} />
-      <Rect x={296} y={136} width={70} height={110} rx={8} fill={colors.mapBlock} />
-      <Rect x={112} y={236} width={128} height={80} rx={8} fill={colors.mapBlock} />
-      {[10, 4.5].map((strokeWidth) => (
-        <Path
-          key={strokeWidth}
-          d={ROUTE}
-          fill="none"
-          stroke={colors.accent}
-          strokeOpacity={strokeWidth > 5 ? 0.2 : 1}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ))}
-      <Circle cx={92} cy={86} r={7} fill={colors.success} stroke={colors.markerRing} strokeWidth={3} />
-      <Circle cx={250} cy={262} r={7} fill={colors.destructive} stroke={colors.markerRing} strokeWidth={3} />
-    </Svg>
+    <Card style={styles.locationCard}>
+      <View style={styles.locationTitle}>
+        <Icon name="pin" size={18} color={colors.accent} />
+        <Txt variant="button">{title}</Txt>
+      </View>
+      <Txt variant="bodySmall" color="textSecondary">
+        {body}
+      </Txt>
+      {action && onPress ? <SecondaryButton label={action} onPress={onPress} /> : null}
+    </Card>
   );
 }
 
-// Navigate: map card, stats, and the two ways to set off.
+// Navigate: the map with your position, the venue and the walking route, the numbers
+// that matter, and the two ways to hand the walk to a maps app.
 export default function Navigate() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const event = useEvent(id);
+  const { access, ask } = useLocationAccess();
+  const position = usePosition(access === 'granted');
+  const now = useNow(30_000);
+
+  const venue = useMemo(
+    () => (event && isPlace(event) && event.geocodeStatus === 'located' ? { lat: event.lat, lng: event.lng } : null),
+    [event],
+  );
+  const answer = useWalkingRoute(position, venue);
+
+  // An address still waiting is looked up now, in case the app has not had the chance.
+  useEffect(() => {
+    if (event?.geocodeStatus === 'pending') locateVenues();
+  }, [event?.geocodeStatus]);
 
   if (!event) {
     return (
@@ -66,9 +115,14 @@ export default function Navigate() {
     );
   }
 
-  const leaveBy = event.startsAt - (WALK_MINUTES + 5) * MINUTE;
+  const units = getSettings().units;
+  const summary =
+    position && venue && answer
+      ? walkSummary(answer, position, venue, event.startsAt, now, units)
+      : null;
   const openIn = (app: string, url: string) =>
     Linking.openURL(url).catch(() => Alert.alert(`Could not open ${app}`));
+  const noMap = venue ? null : whyNoMap(event);
 
   return (
     <Screen
@@ -90,32 +144,64 @@ export default function Navigate() {
         {event.title} · {formatTime(event.startsAt)}
       </Txt>
 
-      <View
-        style={styles.map}
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel="Sample map showing a walking route from your position to the venue"
-      >
-        <DrawnMap />
-        <View style={styles.badge}>
-          <SampleBadge />
-        </View>
+      <View style={styles.map}>
+        {venue ? (
+          <RouteMap
+            venue={venue}
+            me={position}
+            line={answer?.kind === 'route' ? answer.route.line : null}
+            accessibilityLabel={summary?.mapLabel ?? 'Map showing the venue'}
+          />
+        ) : (
+          <View style={styles.noMap} accessible>
+            <Icon name="pin" size={24} color={colors.textTertiary} />
+            <Txt variant="button" style={styles.center}>
+              {noMap!.title}
+            </Txt>
+            <Txt variant="bodySmall" color="textSecondary" style={styles.center}>
+              {noMap!.body}
+            </Txt>
+          </View>
+        )}
       </View>
 
-      <Txt variant="caption" color="textTertiary" style={styles.note}>
-        A sample picture and sample numbers, the same for every event. The live map and your
-        real route arrive in a later build. The two map buttons below work today.
-      </Txt>
+      {venue ? <LocationCard access={access} ask={ask} /> : null}
 
-      <StatGrid
-        items={[
-          // "Leave by" first: it is the one number to act on.
-          { label: 'Leave by', value: formatTime(leaveBy) },
-          { label: 'Walking time', value: `${WALK_MINUTES} min` },
-          { label: 'Distance', value: '0.8 mi' },
-          { label: 'Event starts', value: formatTime(event.startsAt) },
-        ]}
-      />
+      {venue && access === 'granted' && !summary ? (
+        <View style={styles.waiting} accessible accessibilityLabel="Finding where you are and the route">
+          <ActivityIndicator color={colors.textSecondary} />
+          <Txt variant="caption" color="textSecondary">
+            {position ? 'Finding the walking route…' : 'Finding where you are…'}
+          </Txt>
+        </View>
+      ) : null}
+
+      {summary ? (
+        <>
+          <Txt
+            variant="caption"
+            color="textTertiary"
+            style={styles.note}
+            accessibilityLiveRegion="polite"
+          >
+            {summary.note}
+          </Txt>
+          {summary.offerKey ? (
+            <Txt
+              variant="caption"
+              color="accent"
+              accessibilityRole="link"
+              style={styles.keyLink}
+              onPress={() => router.push('/route-key')}
+            >
+              Add a free route key in Settings
+            </Txt>
+          ) : null}
+          <StatGrid items={summary.stats} />
+        </>
+      ) : null}
+
+      {/* Always here, whatever the map could or could not show. */}
       <View style={styles.maps}>
         <SecondaryButton
           label="Open in Apple Maps"
@@ -146,16 +232,43 @@ const styles = StyleSheet.create({
     aspectRatio: 4 / 3,
     borderRadius: radius.card,
     overflow: 'hidden',
-    backgroundColor: colors.mapLand,
+    backgroundColor: colors.surface,
     marginTop: space[6],
     marginBottom: space[3],
   },
-  note: {
-    marginBottom: space[6],
+  noMap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space[2],
+    padding: space[6],
   },
-  badge: {
-    position: 'absolute',
-    left: space[4],
-    bottom: space[4],
+  center: {
+    textAlign: 'center',
+  },
+  locationCard: {
+    gap: space[3],
+    marginBottom: space[3],
+  },
+  locationTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+  },
+  waiting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    marginBottom: space[3],
+  },
+  note: {
+    marginBottom: space[2],
+  },
+  keyLink: {
+    alignSelf: 'flex-start',
+    // A tap target of at least 44 pt, for a one-line link.
+    paddingVertical: space[3],
+    marginTop: -space[2],
+    marginBottom: space[2],
   },
 });
