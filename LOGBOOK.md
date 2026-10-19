@@ -199,4 +199,6 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 
 146. **First check on the iPhone.** You added the key and opened Navigate: the map, your green dot, the venue's red dot and the route all work.
 
-**Next:** the fallback test (Wi-Fi and data off) and the suggestion comparison. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).
+147. **An offline notice.** On the offline test nothing said the phone was offline, and you asked for a notice that comes up as soon as Wi-Fi and data are switched off. Navigate now shows an amber "You're offline" banner at once, and it goes the moment you are back online; the route is then asked for straight away. The address list says it is offline without trying. Checked in the desktop preview by switching the browser off and on. One more package: `expo-network`, built into Expo Go.
+
+**Next:** the offline test again with the banner, and the suggestion comparison. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).
