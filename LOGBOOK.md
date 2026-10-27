@@ -210,4 +210,6 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 
 152. **On the iPhone.** The first try closed the app: the PC was still on the SDK 57 version, because a copy of `package-lock.json` changed by an earlier `npm install` stopped `git pull`. That copy was dropped, the pull went through, `node_modules` was rebuilt, and the app opened. The map, the route and the "You're offline" banner all work on SDK 58.
 
-**Next:** the suggestion comparison, then the pull request. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).
+153. **Address suggestions decided.** You compared the two services on the iPhone: openrouteservice, with OpenStreetMap data, works best. The form uses it whenever your key is set, and Photon, which needs no key, otherwise. The comparison screen is gone from Settings, Developer.
+
+**Next:** the Round 4 pull request, for you to accept. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).

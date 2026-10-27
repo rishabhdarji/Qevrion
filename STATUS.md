@@ -1,6 +1,6 @@
 # Qevrion status
 
-Last updated: the project moved to SDK 58 (27 Oct 2026), because the owner's Expo Go is now 58 and opens only SDK 58 projects. Round 4 (map and walking route) is built and partly confirmed on the iPhone. Round 3 (import) was accepted and merged on 19 Oct 2026. Version 0.0.1.
+Last updated: the project moved to SDK 58 (27 Oct 2026), because the owner's Expo Go is now 58 and opens only SDK 58 projects. Round 4 (map and walking route) is built and confirmed on the iPhone; its pull request is next. Round 3 (import) was accepted and merged on 19 Oct 2026. Version 0.0.1.
 
 ## What works
 
@@ -31,7 +31,6 @@ Last updated: the project moved to SDK 58 (27 Oct 2026), because the owner's Exp
 
 Each placeholder is marked in the code with a `ponytail:` comment naming the round that makes it real:
 
-- **Which suggestion service is better is not settled.** The form uses openrouteservice when a route key is set and Photon when not, until the owner compares them on real addresses (Settings, Developer, "Compare address suggestions", which can share its results). Then the form takes the winner, with Photon kept for when there is no key, and the comparison screen goes.
 - **Onboarding's "Turn on reminders"** only moves to the next page (Round 6).
 - **AR Walk has no camera, GPS or compass**; the arrow does not move (Round 5). The button that opens it reads "Preview AR Walk" until then.
 - **"Open in Apple Maps" and "Open in Google Maps" work**: each opens walking directions to the event's address in that app (Google Maps falls back to its website if the app is not installed). Apple Maps was confirmed on the iPhone on 10 Oct 2026 and Google Maps on 11 Oct 2026.
@@ -48,7 +47,7 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 - **The desktop web preview runs on a stand-in, not the real database.** Expo's web version of SQLite is an alpha and cannot run this app (expo-sqlite 57.0.4, checked 11 Oct 2026): the dev server does not send the page the two cross-origin headers it needs, a synchronous call made before its worker has started times out, and any synchronous result longer than 255 bytes is cut short (`web/WorkerChannel.ts` writes the length into one byte). With the owner's agreement (11 Oct 2026) the preview uses `src/data/db.web.ts` instead, which keeps events and settings in memory, and `src/data/photos.web.ts`. Metro only picks `.web.ts` files for a browser, and the iPhone bundle was checked to contain none of it. What the preview shows is therefore the screens, not the database: the SQL is covered by the tests.
 - **Round 2 works on the owner's iPhone (11 Oct 2026).** Not reported on specifically, so still unknown: the date picker at the largest text size; the app reloading itself when the phone's time zone changes; the guard for places where clocks change at midnight, which only an iPhone set to such a zone can exercise.
 - **Address suggestions (Round 4).** Built with both free services behind one shape (`src/lib/suggest.ts`). Tried on 11 Oct 2026 with Photon: a street number with most of the street name finds the right address first, but the number alone, or with only the first letters of the street, does not. The Round 4 build machine could not reach Photon or openrouteservice at all (its network blocks both), and has neither the owner's key nor location, so the side-by-side test has to happen on the iPhone. Google's own suggestions need a billing account with a credit card. Apple's cannot run inside Expo Go; they become possible with the Round 10 standalone build.
-- **Round 4, only the phone can prove:** the Apple Maps card itself (the desktop preview draws a stand-in), the location question and the Settings round trip, a real route and its numbers, the fallback with Wi-Fi and data off, the sign-up link landing on openrouteservice's form, and whether openrouteservice's autocomplete accepts the key in the `Authorization` header as its own Python client sends it (if not, the comparison screen will say "did not accept the route key").
+- **Round 4 on the phone:** the map, the route, the location question, the offline banner and the address suggestions were all confirmed on the iPhone (19 and 27 Oct 2026). Not reported on specifically: the sign-up link landing on openrouteservice's form.
 
 ## Decisions
 
@@ -105,12 +104,12 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 - Node 24.20.0, npm 11.19.1, Git 2.56.0, GitHub CLI 2.102.0.
 - GitHub CLI is signed in over HTTPS (confirmed 10 Oct 2026) with the `repo` and `workflow` scopes, which is what Round 8 needs to create the repo and push the CI workflow.
 
-## Round 4: map and walking route (built, waiting for the owner's check)
+## Round 4: map and walking route (confirmed on the iPhone, pull request next)
 
-- **Confirmed on the iPhone (19 Oct 2026):** the map, the green dot (you), the red dot (the venue) and the route all work. On the offline test there was no notice that the phone was offline, so a live "You're offline" banner was added (owner's request). The banner was confirmed on 27 Oct 2026. Still to report: the address suggestion comparison.
+- **Confirmed on the iPhone (19 Oct 2026):** the map, the green dot (you), the red dot (the venue) and the route all work. On the offline test there was no notice that the phone was offline, so a live "You're offline" banner was added (owner's request). The banner was confirmed on 27 Oct 2026. openrouteservice was chosen for address suggestions on 27 Oct 2026.
 - **Done when (owner's test):** pick an event near you and see a sensible walking route and times; turn off Wi-Fi and data and see the straight line instead of an error; type a street number and name and get the right address to tap.
 - **Before testing:** add the free key (Settings, Navigation, Walking routes key). Without it Navigate shows the straight line by design. To try the fallback with a key set, open an event you have not opened Navigate for yet (a kept route would still show).
-- **Suggestion test:** Settings, Developer, "Compare address suggestions". Type a few real, partly typed addresses near you, press "Share these results" for each, and send them back; the better service becomes the form's.
+- **Suggestion choice (27 Oct 2026):** the owner compared both services on real, partly typed addresses on the iPhone and found openrouteservice best. The form uses it whenever a route key is set, and Photon (no key) otherwise. The comparison screen was removed. This also shows openrouteservice accepts the key in the `Authorization` header for its autocomplete.
 - **Checks:** type-check, lint, 304 tests in each of six time zones, iPhone and web bundles. Expo's doctor passes all but the two checks that need the Expo API, which the build machine's network blocks.
 - **SDK 58.** Round 4 was built on SDK 57 and tested on the iPhone there, then the project moved to SDK 58 on 27 Oct 2026 when the owner's Expo Go moved. After the move: type-check, lint, 304 tests in six zones, both bundles and the desktop preview pass. Confirmed on the iPhone on SDK 58 (27 Oct 2026): the app opens, and the map, route and offline banner work.
 
