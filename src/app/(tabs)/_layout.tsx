@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { TabList, Tabs, TabSlot, TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
-import { Pressable, StyleSheet, View } from 'react-native';
+import type { Ref } from 'react';
+import { Pressable, StyleSheet, View, type PressableInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Fade } from '@/components/Fade';
@@ -9,12 +10,11 @@ import { Txt } from '@/components/Txt';
 import { tick } from '@/lib/haptics';
 import { colors, radius, size, space, type } from '@/theme';
 
-function TabLabel({
-  label,
-  isFocused,
-  onPress,
-  ...props
-}: TabTriggerSlotProps & { label: string }) {
+// expo-router 58 still types the trigger's ref as a class `View`, which React Native
+// 0.88's components no longer are; the ref it hands over at run time is the right one.
+type SlotProps = Omit<TabTriggerSlotProps, 'ref'> & { ref?: Ref<PressableInstance> };
+
+function TabLabel({ label, isFocused, onPress, ...props }: SlotProps & { label: string }) {
   return (
     <Pressable
       {...props}
