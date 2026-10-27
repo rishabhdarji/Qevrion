@@ -208,4 +208,6 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 150. **Two small code changes.** React Native 0.88's components are no longer classes, so two type names changed: the onboarding pages' scroller and the tab bar's buttons. Nothing the app does changed.
 151. **Checks.** Type-check, lint, 304 tests in each of six time zones, both bundles, and the desktop preview on seven screens with no errors. The iPhone is next: everything Round 4 confirmed needs a quick look again.
 
-**Next:** open the app on the iPhone on SDK 58, then the offline test with the banner, and the suggestion comparison. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).
+152. **On the iPhone.** The first try closed the app: the PC was still on the SDK 57 version, because a copy of `package-lock.json` changed by an earlier `npm install` stopped `git pull`. That copy was dropped, the pull went through, `node_modules` was rebuilt, and the app opened. The map, the route and the "You're offline" banner all work on SDK 58.
+
+**Next:** the suggestion comparison, then the pull request. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).

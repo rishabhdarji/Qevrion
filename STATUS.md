@@ -4,7 +4,7 @@ Last updated: the project moved to SDK 58 (27 Oct 2026), because the owner's Exp
 
 ## What works
 
-- Expo SDK 58 project (React Native 0.88, React 19.3) with TypeScript (strict) and Expo Router. Round 0 was confirmed on the iPhone in Expo Go on 10 Oct 2026; the SDK 58 build is still to be opened on the iPhone.
+- Expo SDK 58 project (React Native 0.88, React 19.3) with TypeScript (strict) and Expo Router. Round 0 was confirmed on the iPhone in Expo Go on 10 Oct 2026, and the SDK 58 build on 27 Oct 2026.
 - **Design system (Round 1).** `src/theme.ts` holds every colour, size, corner radius, type style and spring. Inter and Instrument Serif load at start-up. Components live in `src/components/`: `Screen` (optional top glow, pinned footer), `PrimaryButton`, `SecondaryButton`, `Pill`, `SectionLabel`, `Card` with `ListRow`, `EventHeroCard` (live countdown), `EventRow`, `StatGrid`, `Chip`, `EmptyState`, plus helpers `Txt`, `Icon`, `QevrionMark`, `SampleBadge`, `ScreenHeader`, `PressableScale`, `EventCover`, `Fade`, `StepBars`.
 - **The Qevrion mark.** An open ring with a diagonal tail through the gap (option B, chosen by the owner). Source is `assets/mark.svg`; `npm run icons` redraws the app icon and launch image from it.
 - **All ten screens.** Splash, onboarding (3 pages), Home with search and filter chips, Archive, event detail, add/edit, import (3 steps), Navigate, AR Walk, Settings. A component gallery opens from Settings, Developer.
@@ -107,12 +107,12 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 
 ## Round 4: map and walking route (built, waiting for the owner's check)
 
-- **Confirmed on the iPhone (19 Oct 2026):** the map, the green dot (you), the red dot (the venue) and the route all work. On the offline test there was no notice that the phone was offline, so a live "You're offline" banner was added (owner's request). Still to report: the fallback with the banner, and the address suggestion comparison.
+- **Confirmed on the iPhone (19 Oct 2026):** the map, the green dot (you), the red dot (the venue) and the route all work. On the offline test there was no notice that the phone was offline, so a live "You're offline" banner was added (owner's request). The banner was confirmed on 27 Oct 2026. Still to report: the address suggestion comparison.
 - **Done when (owner's test):** pick an event near you and see a sensible walking route and times; turn off Wi-Fi and data and see the straight line instead of an error; type a street number and name and get the right address to tap.
 - **Before testing:** add the free key (Settings, Navigation, Walking routes key). Without it Navigate shows the straight line by design. To try the fallback with a key set, open an event you have not opened Navigate for yet (a kept route would still show).
 - **Suggestion test:** Settings, Developer, "Compare address suggestions". Type a few real, partly typed addresses near you, press "Share these results" for each, and send them back; the better service becomes the form's.
 - **Checks:** type-check, lint, 304 tests in each of six time zones, iPhone and web bundles. Expo's doctor passes all but the two checks that need the Expo API, which the build machine's network blocks.
-- **SDK 58.** Round 4 was built on SDK 57 and tested on the iPhone there, then the project moved to SDK 58 on 27 Oct 2026 when the owner's Expo Go moved. After the move: type-check, lint, 304 tests in six zones, both bundles and the desktop preview pass. Everything Round 4 confirmed on the phone needs a quick look again on SDK 58.
+- **SDK 58.** Round 4 was built on SDK 57 and tested on the iPhone there, then the project moved to SDK 58 on 27 Oct 2026 when the owner's Expo Go moved. After the move: type-check, lint, 304 tests in six zones, both bundles and the desktop preview pass. Confirmed on the iPhone on SDK 58 (27 Oct 2026): the app opens, and the map, route and offline banner work.
 
 ## Round 3: import (accepted and merged 19 Oct 2026)
 
