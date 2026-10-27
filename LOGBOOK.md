@@ -201,4 +201,11 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 
 147. **An offline notice.** On the offline test nothing said the phone was offline, and you asked for a notice that comes up as soon as Wi-Fi and data are switched off. Navigate now shows an amber "You're offline" banner at once, and it goes the moment you are back online; the route is then asked for straight away. The address list says it is offline without trying. Checked in the desktop preview by switching the browser off and on. One more package: `expo-network`, built into Expo Go.
 
-**Next:** the offline test again with the banner, and the suggestion comparison. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).
+## SDK 58
+
+148. **Why now.** You checked Expo Go on the iPhone: client 58.0.5, supported SDK 58.0.0. That version opens only SDK 58 projects, so the app on SDK 57 would no longer open. The upgrade planned after Round 3 was done straight away, on the Round 4 branch.
+149. **What changed.** Expo 58.0.19, React Native 0.88, React 19.3, and every Expo package at the version this SDK lists. The package lock was rebuilt from scratch, because npm stopped on an optional Windows-only package the date picker mentions but this app never installs. The dependency audit went from 67 findings to 5, all in build tools.
+150. **Two small code changes.** React Native 0.88's components are no longer classes, so two type names changed: the onboarding pages' scroller and the tab bar's buttons. Nothing the app does changed.
+151. **Checks.** Type-check, lint, 304 tests in each of six time zones, both bundles, and the desktop preview on seven screens with no errors. The iPhone is next: everything Round 4 confirmed needs a quick look again.
+
+**Next:** open the app on the iPhone on SDK 58, then the offline test with the banner, and the suggestion comparison. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).

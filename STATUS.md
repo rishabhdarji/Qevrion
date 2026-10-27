@@ -1,10 +1,10 @@
 # Qevrion status
 
-Last updated: Round 4 (map and walking route) is built and waiting for the owner's check on the iPhone (19 Oct 2026). Round 3 (import) was accepted and merged on 19 Oct 2026. Version 0.0.1.
+Last updated: the project moved to SDK 58 (27 Oct 2026), because the owner's Expo Go is now 58 and opens only SDK 58 projects. Round 4 (map and walking route) is built and partly confirmed on the iPhone. Round 3 (import) was accepted and merged on 19 Oct 2026. Version 0.0.1.
 
 ## What works
 
-- Expo SDK 57 project with TypeScript (strict) and Expo Router. Round 0 was confirmed on the iPhone in Expo Go on 10 Oct 2026.
+- Expo SDK 58 project (React Native 0.88, React 19.3) with TypeScript (strict) and Expo Router. Round 0 was confirmed on the iPhone in Expo Go on 10 Oct 2026; the SDK 58 build is still to be opened on the iPhone.
 - **Design system (Round 1).** `src/theme.ts` holds every colour, size, corner radius, type style and spring. Inter and Instrument Serif load at start-up. Components live in `src/components/`: `Screen` (optional top glow, pinned footer), `PrimaryButton`, `SecondaryButton`, `Pill`, `SectionLabel`, `Card` with `ListRow`, `EventHeroCard` (live countdown), `EventRow`, `StatGrid`, `Chip`, `EmptyState`, plus helpers `Txt`, `Icon`, `QevrionMark`, `SampleBadge`, `ScreenHeader`, `PressableScale`, `EventCover`, `Fade`, `StepBars`.
 - **The Qevrion mark.** An open ring with a diagonal tail through the gap (option B, chosen by the owner). Source is `assets/mark.svg`; `npm run icons` redraws the app icon and launch image from it.
 - **All ten screens.** Splash, onboarding (3 pages), Home with search and filter chips, Archive, event detail, add/edit, import (3 steps), Navigate, AR Walk, Settings. A component gallery opens from Settings, Developer.
@@ -52,9 +52,9 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 
 ## Decisions
 
-- **SDK 57.** The App Store version of Expo Go is 57.0.9 and runs SDK 57 projects (Expo changelog, 3 Sep 2026, and the App Store listing). Expo's version-mismatch troubleshooting page still says the App Store stops at SDK 54; that page is out of date.
+- **SDK 58 (27 Oct 2026).** The owner's Expo Go reports client 58.0.5, supported SDK 58.0.0, and so no longer opens SDK 57 projects. Moved to `expo` 58.0.19 and set every Expo-managed package to the version in that release's `bundledNativeModules.json` (`npx expo install --fix` could not be used: the build machine cannot reach the Expo API). npm refused the upgrade in place over an optional Windows-only peer of the date picker that is never installed, so `package-lock.json` was rebuilt from scratch; that also took `npm audit` from 67 findings to 5 (2 moderate, 3 high, all in build tools). Two type fixes for React Native 0.88, whose components are no longer classes: the onboarding scroller's ref is a `ScrollViewInstance`, and the tab bar's trigger ref is typed as a `PressableInstance` because expo-router 58 still types it as a class `View`. `expo-calendar/legacy` is unchanged. Gesture Handler moved to its 3.x line; the app does not use it directly.
+- **SDK 57 (until 27 Oct 2026).** The App Store version of Expo Go was 57.0.9 and ran SDK 57 projects (Expo changelog, 3 Sep 2026, and the App Store listing).
 - **Expo login is required.** Since Sep 2026, Expo Go on iOS only opens a project when the terminal (`npx expo login`) and the Expo Go app are signed in to the same Expo account. The free plan is enough.
-- **SDK 58 is in beta.** When it goes stable the App Store Expo Go will move to 58 and stop opening SDK 57 projects. Plan a short upgrade step when that happens.
 - **Scaffold.** Started from the official `default@sdk-57` template, then removed its demo screens, components and Expo-branded images. Round 1 removed three unused template packages from `package.json` (`@expo/ui`, `expo-glass-effect`, `expo-device`).
 - **Round 1 packages.** Added `react-native-svg` (mark, glow, covers, drawn map, arrow), `expo-haptics`, `@expo-google-fonts/inter` and `@expo-google-fonts/instrument-serif`; dev only: `jest`, `jest-expo`, `@types/jest`, `sharp`. Jest came one round early so the countdown and list logic are tested. Icons are SF Symbols through `expo-symbols`, which was already installed.
 - **Fonts.** Imported one weight at a time (`@expo-google-fonts/inter/400Regular`), because the package's main entry pulls in all 18 files. Five font files are bundled.
@@ -86,7 +86,7 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 - **Tunnel mode.** `@expo/ngrok` is a dev dependency, added by Expo when `npx expo start --tunnel` was run. Use `--tunnel` whenever the phone can't reach the PC over Wi-Fi.
 - **Private working files.** The owner's standing rules and round-by-round build prompts live on the owner's PC and are deliberately not in this repo. `SPEC.md`, this file and `LOGBOOK.md` are the public record.
 - **openrouteservice free plan (checked 19 Oct 2026).** Standard plan: Directions 2,000 a day and 40 a minute; Geocoding 3,000 a day and 100 a minute. Read from account.heigit.org/info/plans through search results, because the build machine's network could not open the page itself; the spec's 2,000 a day is still right. Autocomplete is not listed separately and is taken to count under Geocoding.
-- **Round 4 packages.** `react-native-maps` 1.27.2 (Apple Maps on iOS, no key, in Expo Go), `expo-network` 57.0.x (the offline notice) and `expo-secure-store` 57.0.4, the versions SDK 57 lists. Neither adds an audit finding. `app.json` now configures `expo-location` (the "while using" sentence; the background, always and motion strings removed) and `expo-secure-store` (no Face ID string).
+- **Round 4 packages.** `react-native-maps` (Apple Maps on iOS, no key, in Expo Go), `expo-network` (the offline notice) and `expo-secure-store`, at the versions the SDK lists (since SDK 58: 1.29.11, 58.0.4 and 58.0.2). Neither adds an audit finding. `app.json` now configures `expo-location` (the "while using" sentence; the background, always and motion strings removed) and `expo-secure-store` (no Face ID string).
 - **Desktop preview twins for Round 4.** `src/components/RouteMap.web.tsx` draws the points on a plain card, and `src/data/secrets.web.ts` keeps the key in memory. The preview's seeded event has an invented place so Navigate can be looked at. The iPhone bundle was checked to contain neither.
 - **What leaves the phone in Round 4.** To openrouteservice (HeiGIT, Heidelberg): your position and the venue's, only when Navigate is open with a key set and nothing kept fits; one fixed test route when a key is saved; and, for suggestions, the letters typed. To Photon (komoot): the letters typed. With either, roughly where you are (rounded to about 100 m) only if location is already allowed. Never the title, notes, host or anything else. Text with a link in it is never sent.
 - **Credits.** Commit messages and pull requests carry no tool credit or co-author lines, at the owner's request.
@@ -112,7 +112,7 @@ Each placeholder is marked in the code with a `ponytail:` comment naming the rou
 - **Before testing:** add the free key (Settings, Navigation, Walking routes key). Without it Navigate shows the straight line by design. To try the fallback with a key set, open an event you have not opened Navigate for yet (a kept route would still show).
 - **Suggestion test:** Settings, Developer, "Compare address suggestions". Type a few real, partly typed addresses near you, press "Share these results" for each, and send them back; the better service becomes the form's.
 - **Checks:** type-check, lint, 304 tests in each of six time zones, iPhone and web bundles. Expo's doctor passes all but the two checks that need the Expo API, which the build machine's network blocks.
-- **SDK 58** upgrade is still to do; this round was built on SDK 57 at the owner's request to go straight to Round 4.
+- **SDK 58.** Round 4 was built on SDK 57 and tested on the iPhone there, then the project moved to SDK 58 on 27 Oct 2026 when the owner's Expo Go moved. After the move: type-check, lint, 304 tests in six zones, both bundles and the desktop preview pass. Everything Round 4 confirmed on the phone needs a quick look again on SDK 58.
 
 ## Round 3: import (accepted and merged 19 Oct 2026)
 

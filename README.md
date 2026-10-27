@@ -77,13 +77,13 @@ npx expo start
 
 Sign in to the same Expo account inside Expo Go, then scan the QR code from the terminal with the iPhone camera. If the phone can't reach your computer, start the server with `npx expo start --tunnel` instead.
 
-Expo Go supports one SDK version at a time. This project is on SDK 57, which is what the App Store version of Expo Go runs today.
+Expo Go supports one SDK version at a time. This project is on SDK 58, which is what the App Store version of Expo Go runs today.
 
 ## Tech stack
 
 | | |
 |---|---|
-| **In the code today** | Expo SDK 57, React Native 0.86, TypeScript in strict mode, Expo Router |
+| **In the code today** | Expo SDK 58, React Native 0.88, TypeScript in strict mode, Expo Router |
 | **Planned, per the spec** | SQLite for storage, local notifications, the iOS calendar, Apple Maps, the camera, GPS and compass |
 | **Free services** | openrouteservice for walking routes and address suggestions (bring your own free key), Photon for address suggestions with no key; planned: Open-Meteo for weather |
 | **Checks** | `npm run typecheck`, `npm run lint` and `npm run test:zones` (the tests, in six time zones), run by GitHub Actions on every push |
