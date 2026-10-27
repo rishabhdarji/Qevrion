@@ -191,11 +191,9 @@ export async function fetchSuggestions(
 }
 
 /**
- * Which source the form uses.
- * ponytail: chosen for now as openrouteservice when a key is set and Photon when not,
- * until the owner's side-by-side test on the iPhone (Settings, Developer, Compare
- * address suggestions) says which is better; then this becomes that one, with Photon
- * kept for when there is no key.
+ * Which source the form uses: openrouteservice, which the owner found best on real,
+ * partly typed addresses on the iPhone (27 Oct 2026), whenever a key is set; Photon,
+ * which needs no key, when it is not.
  */
 export const suggestSource = (key: string | null): SuggestSource => (key ? 'openrouteservice' : 'photon');
 

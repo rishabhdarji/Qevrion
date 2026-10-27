@@ -175,12 +175,6 @@ export default function Settings() {
           />
         ) : null}
         <ListRow
-          title="Compare address suggestions"
-          subtitle="Photon and openrouteservice, side by side"
-          divider
-          onPress={() => router.push('/compare-suggestions')}
-        />
-        <ListRow
           title="Component gallery"
           subtitle="Every building block on one page"
           divider
