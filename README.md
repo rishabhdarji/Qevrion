@@ -9,13 +9,13 @@ and a camera view that walks you to the door.
 
 [![CI](https://github.com/rishabhdarji/Qevrion/actions/workflows/ci.yml/badge.svg)](https://github.com/rishabhdarji/Qevrion/actions/workflows/ci.yml)
 ![Version](https://img.shields.io/badge/version-0.0.1-F4ECE8?labelColor=0E0E10)
-![Expo SDK](https://img.shields.io/badge/Expo%20SDK-57-4FB3E8?labelColor=0E0E10)
+![Expo SDK](https://img.shields.io/badge/Expo%20SDK-58-4FB3E8?labelColor=0E0E10)
 ![Platform](https://img.shields.io/badge/iOS-16.4%2B-7ED321?labelColor=0E0E10)
 
 </div>
 
 > [!NOTE]
-> **Early days.** Qevrion is being built in the open, one round at a time. Rounds 0 to 3 are done and seven more follow. Today you can add, edit and delete events by hand, each with its own photo, or bring them in from the iPhone Calendar or an `.ics` file; they are stored on the phone, and the countdown to the next one, search, filters and the archive all work on them. Navigate shows a real map with your walking route when you add a free openrouteservice key, and a straight line and direction without one. There are no reminders yet and AR Walk is a mock-up. Everything under "What it will do" is the plan, not what is in the code yet. [STATUS.md](STATUS.md) always says what actually works.
+> **Early days.** Qevrion is being built in the open, one round at a time. Rounds 0 to 4 are done and six more follow. Today you can add, edit and delete events by hand, each with its own photo, or bring them in from the iPhone Calendar or an `.ics` file; they are stored on the phone, and the countdown to the next one, search, filters and the archive all work on them. Navigate shows a real map with your walking route when you add a free openrouteservice key, and a straight line and direction without one. AR Walk shows the street through the camera with an arrow that turns toward the next turn; it is built and waiting for its first outdoor test. There are no reminders yet. Everything under "What it will do" is the plan, not what is in the code yet. [STATUS.md](STATUS.md) always says what actually works.
 
 ## Why
 
@@ -47,8 +47,8 @@ Invites pile up. They live in different apps, the details are buried in long des
 | 1 | Design system and app shell | **Done** |
 | 2 | Database and manual events | **Done** |
 | 3 | Import from Calendar and `.ics` | **Done** |
-| 4 | Map and walking route | Built, being checked |
-| 5 | AR Walk | Planned |
+| 4 | Map and walking route | **Done** |
+| 5 | AR Walk | Built, being checked |
 | 6 | Reminders | Planned |
 | 7 | Key details, weather, conflicts | Planned |
 | 8 | Polish, tests and the v0.0.1 release | Planned |
@@ -83,8 +83,8 @@ Expo Go supports one SDK version at a time. This project is on SDK 58, which is 
 
 | | |
 |---|---|
-| **In the code today** | Expo SDK 58, React Native 0.88, TypeScript in strict mode, Expo Router |
-| **Planned, per the spec** | SQLite for storage, local notifications, the iOS calendar, Apple Maps, the camera, GPS and compass |
+| **In the code today** | Expo SDK 58, React Native 0.88, TypeScript in strict mode, Expo Router, SQLite for storage, the iOS calendar, Apple Maps, the camera, GPS, compass and motion sensor |
+| **Planned, per the spec** | Local notifications |
 | **Free services** | openrouteservice for walking routes and address suggestions (bring your own free key), Photon for address suggestions with no key; planned: Open-Meteo for weather |
 | **Checks** | `npm run typecheck`, `npm run lint` and `npm run test:zones` (the tests, in six time zones), run by GitHub Actions on every push |
 
