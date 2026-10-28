@@ -1,7 +1,7 @@
 import { distance } from '../lib/geo';
 import type { WalkingRoute } from '../lib/route';
 import { deleteAllData, findRoute } from './db';
-import { ASK_EVERY_MS, needsNewAnswer, walkingRoute, type RouteAnswer } from './routes';
+import { ASK_EVERY_MS, needsNewAnswer, OFF_ROUTE_FOR_MS, walkingRoute, type RouteAnswer } from './routes';
 
 // The real SQL runs here, as in db.test.ts.
 jest.mock('expo-sqlite', () => jest.requireActual('./sqlite.testing'));
@@ -126,6 +126,14 @@ describe('needsNewAnswer', () => {
     expect(distance(off, me)).toBeGreaterThan(40);
     expect(needsNewAnswer(route(), off, venue, now + 1000)).toBe(false);
     expect(needsNewAnswer(route(), off, venue, now + ASK_EVERY_MS)).toBe(true);
+  });
+
+  it('waits until you have been off it for 10 seconds', () => {
+    const off = { lat: me.lat, lng: me.lng - 0.002 };
+    const later = now + 10 * ASK_EVERY_MS;
+    expect(needsNewAnswer(route(), off, venue, later, true, later)).toBe(false);
+    expect(needsNewAnswer(route(), off, venue, later, true, later - OFF_ROUTE_FOR_MS + 1)).toBe(false);
+    expect(needsNewAnswer(route(), off, venue, later, true, later - OFF_ROUTE_FOR_MS)).toBe(true);
   });
 
   it('tries again after a passing problem, after the wait', () => {

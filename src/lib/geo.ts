@@ -106,6 +106,9 @@ export function routeLength(route: LatLng[]): number {
 /** Within this of a waypoint, it counts as reached (SPEC 9: about 15 m). */
 export const WAYPOINT_REACHED_M = 15;
 
+/** Further than this from the route line is off the route (SPEC 9: about 40 m). */
+export const OFF_ROUTE_M = 40;
+
 /**
  * Which waypoint to head for next. Moves on from `current` once `from` is within
  * `reached` metres of it, and past any later ones that are just as close, so a run of
