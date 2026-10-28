@@ -17,6 +17,11 @@ export type EventDraft = {
   notes: string;
   /** The photo to show: the event's own, or one just picked and not yet saved. */
   photo: string | null;
+  /**
+   * The suggestion last picked for "Where": its address and where it is. It only
+   * counts while the field still holds exactly that address.
+   */
+  place: { full: string; lat: number; lng: number } | null;
 };
 
 export type DraftErrors = { title?: string; start?: string; end?: string };
@@ -38,6 +43,7 @@ export function newDraft(now: number): EventDraft {
     url: '',
     notes: '',
     photo: null,
+    place: null,
   };
 }
 
@@ -53,6 +59,8 @@ export function eventToDraft(event: QevrionEvent): EventDraft {
     url: event.url ?? '',
     notes: event.notes,
     photo: event.photo,
+    // Where a saved address is stays as it is unless the address changes.
+    place: null,
   };
 }
 
@@ -81,12 +89,15 @@ export function validateDraft(draft: EventDraft): DraftErrors {
 /** The draft as it is saved. Call only when `validateDraft` finds nothing. */
 export function draftToFields(draft: EventDraft): EventFields {
   const url = draft.url.trim();
+  const locationText = draft.locationText.trim();
+  const picked = draft.place && draft.place.full === locationText ? draft.place : null;
   return {
     title: draft.title.trim(),
     allDay: draft.allDay,
     startsAt: draft.allDay ? dayStart(draft.start) : draft.start,
     endsAt: draft.allDay ? dayStart(draft.end, 1) : draft.end,
-    locationText: draft.locationText.trim(),
+    locationText,
+    ...(picked ? { place: { lat: picked.lat, lng: picked.lng } } : {}),
     host: draft.host.trim(),
     // "partiful.com/e/abc" is a link someone meant to be tappable.
     url: url === '' ? null : /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`,

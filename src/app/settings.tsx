@@ -10,7 +10,7 @@ import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
-import { getSettings } from '@/data/db';
+import { getSettings, updateSettings } from '@/data/db';
 import {
   deleteAllData,
   insertSampleEvents,
@@ -18,6 +18,7 @@ import {
   useEvents,
 } from '@/data/events';
 import { SAMPLE_COUNT } from '@/data/sampleEvents';
+import { getRouteKey } from '@/data/secrets';
 import { confirmDestructive } from '@/lib/confirm';
 import { tap } from '@/lib/haptics';
 import { colors, space } from '@/theme';
@@ -39,8 +40,8 @@ function Value({ children }: { children: string }) {
   );
 }
 
-// Settings. Import sources, Data and Developer work; the other groups become real in
-// the round that builds their feature (route key 4, reminders 6).
+// Settings. Import sources, Navigation, Data and Developer work; Reminders becomes real
+// in Round 6.
 export default function Settings() {
   const router = useRouter();
   const version = Constants.expoConfig?.version ?? '';
@@ -49,7 +50,15 @@ export default function Settings() {
   // Settings are not watched like events are, so the count is read again each time
   // this screen is back in front, as it is when the import closes.
   const [calendars, setCalendars] = useState(chosenCount);
-  useFocusEffect(useCallback(() => setCalendars(chosenCount()), []));
+  const [units, setUnits] = useState(() => getSettings().units);
+  // The key is read from the keychain, which answers a moment later.
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      setCalendars(chosenCount());
+      getRouteKey().then((key) => setHasKey(!!key));
+    }, []),
+  );
 
   return (
     <Screen glow>
@@ -82,8 +91,24 @@ export default function Settings() {
 
       <SectionLabel style={styles.groupLabel}>Navigation</SectionLabel>
       <Card padded={false}>
-        <ListRow title="Walking routes key" subtitle="openrouteservice" status="Not set" />
-        <ListRow title="Units" divider right={<Value>Miles</Value>} />
+        <ListRow
+          title="Walking routes key"
+          subtitle="openrouteservice, free"
+          status={hasKey === null ? undefined : hasKey ? 'Set' : 'Not set'}
+          onPress={() => router.push('/route-key')}
+        />
+        <ListRow
+          title="Units"
+          subtitle="Tap to switch"
+          divider
+          right={<Value>{units === 'mi' ? 'Miles' : 'Kilometres'}</Value>}
+          onPress={() => {
+            tap();
+            const next = units === 'mi' ? 'km' : 'mi';
+            updateSettings({ units: next });
+            setUnits(next);
+          }}
+        />
       </Card>
 
       <SectionLabel style={styles.groupLabel}>Data</SectionLabel>
@@ -96,11 +121,13 @@ export default function Settings() {
           onPress={() =>
             confirmDestructive(
               'Delete all data?',
-              'Every event and setting is removed from this phone, and Qevrion starts again from the welcome screens. This cannot be undone.',
+              'Every event, saved route and setting, the route key included, is removed from this phone, and Qevrion starts again from the welcome screens. This cannot be undone.',
               'Delete everything',
               () => {
                 deleteAllData();
                 setCalendars(0);
+                setUnits('mi');
+                setHasKey(false);
               },
             )
           }

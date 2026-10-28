@@ -1,4 +1,6 @@
+import { distance } from '../lib/geo';
 import { planImport } from '../lib/importPlan';
+import type { WalkingRoute } from '../lib/route';
 import type { Settings } from '../types';
 import type * as Phone from './db';
 
@@ -57,6 +59,8 @@ function seed() {
     url: null,
     notes: '',
     photo: PREVIEW_PHOTO,
+    // An invented place, so Navigate has somewhere to point in the preview.
+    place: { lat: 40.7536, lng: -73.9832 },
   });
 }
 
@@ -81,10 +85,13 @@ export const saveEvent: typeof Phone.saveEvent = (fields, id) => {
     description,
     keyDetails: old?.keyDetails ?? fields.keyDetails ?? [],
     isPartiful: partiful(fields.url, description, fields.locationText),
-    // Nothing is looked up on a map in the preview.
-    lat: null,
-    lng: null,
-    geocodeStatus: 'pending',
+    // Nothing is looked up on a map in the preview: a place is only known when it was
+    // picked from the suggestions, or kept from before when the address is the same.
+    ...(fields.place
+      ? { ...fields.place, geocodeStatus: 'located' as const }
+      : old && old.locationText === fields.locationText
+        ? { lat: old.lat, lng: old.lng, geocodeStatus: old.geocodeStatus }
+        : { lat: null, lng: null, geocodeStatus: 'pending' as const }),
     removedFromSource: old?.removedFromSource ?? false,
   };
   events = [...events.filter((event) => event.id !== saved.id), saved];
@@ -153,8 +160,26 @@ export const importEvents: typeof Phone.importEvents = (incoming, scope) => {
 export const nextPendingAddress: typeof Phone.nextPendingAddress = () => ({ address: null, reused: 0 });
 export const setGeocode: typeof Phone.setGeocode = () => {};
 
+let routes: WalkingRoute[] = [];
+
+export const ROUTE_FROM_M: typeof Phone.ROUTE_FROM_M = 75;
+export const ROUTE_KEEP_MS: typeof Phone.ROUTE_KEEP_MS = 14 * 24 * 3_600_000;
+
+export const findRoute: typeof Phone.findRoute = (from, to, now = Date.now()) =>
+  routes.find(
+    (route) =>
+      route.fetchedAt > now - ROUTE_KEEP_MS &&
+      distance(route.to, to) <= 25 &&
+      distance(route.from, from) <= ROUTE_FROM_M,
+  ) ?? null;
+
+export const keepRoute: typeof Phone.keepRoute = (route) => {
+  routes = [route, ...routes].slice(0, 40);
+};
+
 export const deleteAllData: typeof Phone.deleteAllData = () => {
   events = [];
+  routes = [];
   settings = { ...DEFAULTS };
 };
 

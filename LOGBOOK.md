@@ -177,3 +177,39 @@ Entries 1 to 12 were written after the fact, in the order they happened.
 132. **Build board.** At your request, a private live page now shows what is being worked on.
 
 **Next:** your check of Round 3 on the iPhone, then you accept its pull request. After that, the SDK 58 upgrade, then Round 4 (map and walking route).
+
+## Round 3 confirmed
+
+133. **Accepted.** You merged Round 3's pull request on 19 Oct 2026. The SDK 58 upgrade was skipped for now: you asked to go straight to Round 4.
+
+## Round 4: map and walking route
+
+134. **Read first.** The spec's stack, Navigate and geo maths sections, and the status file. The rules file the rounds usually start from is on your PC, not in the repo, so this session followed the rules written in the status file: no tool credits in commits, commit times in UTC, and the round reaching `main` only through a pull request you accept.
+135. **openrouteservice's free plan.** Directions: 2,000 a day and 40 a minute. Geocoding: 3,000 a day and 100 a minute. This session's network could not open openrouteservice's pages, so these were read from its plans page through search results; the spec's 2,000 a day still holds.
+136. **Packages.** Apple Maps for the map (`react-native-maps`, built into Expo Go, no key) and the keychain for the key (`expo-secure-store`). The versions are the ones SDK 57 lists. No new audit findings.
+137. **Geo maths.** Distance, bearing, compass point, how far to turn the arrow, the nearest point on the route, and moving on to the next turn within 15 m. 27 tests, ready for AR Walk.
+138. **The route.** Asked for with your key only when Navigate is open and no saved route fits. Each route is kept on the phone for two weeks and reused for a start within 75 m. A new one is asked for only when you are more than 40 m off the line, and at most every 30 seconds.
+139. **The fallback.** No key, no connection, a refused key, a used-up limit, no route, or too far to walk: a dashed straight line, the straight-line distance, the least time it can take, Leave by and the direction, with one line saying why. Never an error. The two map buttons are there in every case.
+140. **Location.** Asked for only on Navigate, after a card says why, and only "while using the app"; the background strings are removed from the app's settings. If you said no, the card leads to Settings.
+141. **The key screen.** Settings, Navigation, Walking routes key: how to get a free key, a field to paste it in, a check with one test route between two fixed points in Heidelberg, and "Remove key". Units now switches miles and kilometres.
+142. **Address suggestions.** Built with both free services, Photon and openrouteservice's own, behind one shape. Typing three letters in "Where" lists up to five addresses; tapping one fills it in and keeps where it is, so it is on the map at once. Nearby places first when location is already allowed; the form never asks. The list says where the suggestions come from and that what you type is sent there.
+143. **The comparison could not be run here.** This session's network blocks both services, and it has neither your key nor your location. So Settings, Developer has a "Compare address suggestions" screen that asks both at once and can share the results. Until you have tried it, the form uses openrouteservice when a key is set and Photon when not.
+144. **Checked in the desktop preview.** Navigate's straight-line fallback, the key screen, and the form with a simulated Photon answer (the real one is blocked here): the list shows, a tap fills in the address and shows "On the map", and the question carries your rough position. Two things were found and fixed. Tapping a suggestion could close the list before the tap landed; it now waits a moment. When the phone had no recent position the ranking was silently skipped; it now takes a quick rough fix.
+145. **Checks.** Type-check, lint, 302 tests in each of six time zones, and both bundles. The iPhone bundle has none of the preview stand-ins. Expo's doctor passes all but the two checks that need the Expo API, which this network blocks.
+
+146. **First check on the iPhone.** You added the key and opened Navigate: the map, your green dot, the venue's red dot and the route all work.
+
+147. **An offline notice.** On the offline test nothing said the phone was offline, and you asked for a notice that comes up as soon as Wi-Fi and data are switched off. Navigate now shows an amber "You're offline" banner at once, and it goes the moment you are back online; the route is then asked for straight away. The address list says it is offline without trying. Checked in the desktop preview by switching the browser off and on. One more package: `expo-network`, built into Expo Go.
+
+## SDK 58
+
+148. **Why now.** You checked Expo Go on the iPhone: client 58.0.5, supported SDK 58.0.0. That version opens only SDK 58 projects, so the app on SDK 57 would no longer open. The upgrade planned after Round 3 was done straight away, on the Round 4 branch.
+149. **What changed.** Expo 58.0.19, React Native 0.88, React 19.3, and every Expo package at the version this SDK lists. The package lock was rebuilt from scratch, because npm stopped on an optional Windows-only package the date picker mentions but this app never installs. The dependency audit went from 67 findings to 5, all in build tools.
+150. **Two small code changes.** React Native 0.88's components are no longer classes, so two type names changed: the onboarding pages' scroller and the tab bar's buttons. Nothing the app does changed.
+151. **Checks.** Type-check, lint, 304 tests in each of six time zones, both bundles, and the desktop preview on seven screens with no errors. The iPhone is next: everything Round 4 confirmed needs a quick look again.
+
+152. **On the iPhone.** The first try closed the app: the PC was still on the SDK 57 version, because a copy of `package-lock.json` changed by an earlier `npm install` stopped `git pull`. That copy was dropped, the pull went through, `node_modules` was rebuilt, and the app opened. The map, the route and the "You're offline" banner all work on SDK 58.
+
+153. **Address suggestions decided.** You compared the two services on the iPhone: openrouteservice, with OpenStreetMap data, works best. The form uses it whenever your key is set, and Photon, which needs no key, otherwise. The comparison screen is gone from Settings, Developer.
+
+**Next:** the Round 4 pull request, for you to accept. Then the pull request, then the SDK 58 upgrade and Round 5 (AR Walk).
