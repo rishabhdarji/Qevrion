@@ -28,6 +28,8 @@ import type {
 // A row that shares its key with an earlier one is dropped first: the index could not
 // be built over it, and a database that cannot be upgraded cannot be opened. Version 4
 // keeps walking routes, so the same walk does not use up the route key's daily limit.
+// Version 5 is for AR Walk: whether its safety note has been seen, and the two
+// Developer switches that simulate and record walks.
 export const MIGRATIONS = [
   `CREATE TABLE events (
     id TEXT PRIMARY KEY NOT NULL,
@@ -86,6 +88,9 @@ export const MIGRATIONS = [
     fetchedAt INTEGER NOT NULL
   ) STRICT;
   CREATE INDEX routes_to ON routes (toLat);`,
+  `ALTER TABLE settings ADD COLUMN walkSafetySeen INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE settings ADD COLUMN simulateWalk INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE settings ADD COLUMN recordWalks INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 let opened: SQLiteDatabase | undefined;
@@ -493,6 +498,9 @@ const SETTINGS_KEYS = [
   'onlyPartifulLinks',
   'units',
   'onboardingDone',
+  'walkSafetySeen',
+  'simulateWalk',
+  'recordWalks',
 ] as const satisfies readonly (keyof Settings)[];
 
 export function getSettings(): Settings {
@@ -509,6 +517,9 @@ export function getSettings(): Settings {
     onlyPartifulLinks: row.onlyPartifulLinks === 1,
     units: row.units === 'km' ? 'km' : 'mi',
     onboardingDone: row.onboardingDone === 1,
+    walkSafetySeen: row.walkSafetySeen === 1,
+    simulateWalk: row.simulateWalk === 1,
+    recordWalks: row.recordWalks === 1,
   };
 }
 

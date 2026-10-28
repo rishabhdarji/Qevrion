@@ -40,6 +40,9 @@ const WHY: Record<RouteProblem, string> = {
   failed: 'The route could not be worked out, so this is a straight line.',
 };
 
+/** Why there is a straight line and not a walking route, in one sentence. */
+export const whyStraight = (problem: RouteProblem) => WHY[problem];
+
 function leaveBy(startsAt: number, walkMs: number, now: number): string {
   if (now >= startsAt) return 'Started';
   const at = startsAt - walkMs - SPARE_MS;

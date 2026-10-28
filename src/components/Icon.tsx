@@ -25,6 +25,8 @@ const ICONS = {
   bell: { ios: 'bell', android: 'notifications', web: 'notifications' },
   photo: { ios: 'photo', android: 'image', web: 'image' },
   offline: { ios: 'wifi.slash', android: 'wifi_off', web: 'wifi_off' },
+  camera: { ios: 'camera', android: 'photo_camera', web: 'photo_camera' },
+  eye: { ios: 'eye', android: 'visibility', web: 'visibility' },
 } as const satisfies Record<string, SymbolViewProps['name']>;
 
 export type IconName = keyof typeof ICONS;

@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { distance, nearestPointOnRoute, type LatLng } from '../lib/geo';
+import { distance, nearestPointOnRoute, OFF_ROUTE_M, type LatLng } from '../lib/geo';
 import { fetchRoute, RouteError, type RouteProblem, type WalkingRoute } from '../lib/route';
 import * as db from './db';
 import { getRouteKey } from './secrets';
@@ -25,10 +25,10 @@ export type RouteAnswer =
 
 /** Further than this in a straight line is not a walk, and is not asked for. */
 export const TOO_FAR_M = 30_000;
-/** Further than this from the route line, a new route is wanted (SPEC 9: about 40 m). */
-export const OFF_ROUTE_M = 40;
 /** At most one new route this often (SPEC 9: one re-route per 30 seconds). */
 export const ASK_EVERY_MS = 30_000;
+/** Off the route this long before a new one is asked for (SPEC 9), so one stray fix costs nothing. */
+export const OFF_ROUTE_FOR_MS = 10_000;
 /** A venue that moved further than this is a different venue. */
 const SAME_VENUE_M = 25;
 
@@ -69,10 +69,14 @@ export async function walkingRoute(
 /** Problems that may be gone a little later, so it is worth asking again. */
 const PASSING: readonly RouteProblem[] = ['offline', 'quota', 'failed'];
 
+/** How far `me` is from a route's line. */
+const offRoute = (route: WalkingRoute, me: LatLng) => nearestPointOnRoute(me, route.line)?.offRoute ?? Infinity;
+
 /**
  * Whether the answer on screen still does for where the owner is now. A route does
- * until they are well off it; a straight line given for a passing problem is tried
- * again, but no more often than `ASK_EVERY_MS`.
+ * until they have been well off it for `OFF_ROUTE_FOR_MS` (counted from `offSince`;
+ * null means not counted, so no wait); a straight line given for a passing problem is
+ * tried again. Either way, no more often than `ASK_EVERY_MS`.
  */
 export function needsNewAnswer(
   answer: RouteAnswer | null,
@@ -80,13 +84,17 @@ export function needsNewAnswer(
   venue: LatLng,
   now: number,
   online = true,
+  offSince: number | null = null,
 ): boolean {
   if (!answer) return true;
   const to = answer.kind === 'route' ? answer.route.to : answer.to;
   if (distance(to, venue) > SAME_VENUE_M) return true;
   if (answer.kind === 'route') {
-    const off = nearestPointOnRoute(me, answer.route.line)?.offRoute ?? Infinity;
-    return off > OFF_ROUTE_M && now - answer.route.fetchedAt >= ASK_EVERY_MS;
+    return (
+      offRoute(answer.route, me) > OFF_ROUTE_M &&
+      (offSince === null || now - offSince >= OFF_ROUTE_FOR_MS) &&
+      now - answer.route.fetchedAt >= ASK_EVERY_MS
+    );
   }
   if (answer.problem === 'tooFar') return distance(me, venue) <= TOO_FAR_M;
   // Back online after a straight line given for being offline: ask now, not later.
@@ -130,9 +138,22 @@ export function useWalkingRoute(
     }, []),
   );
 
+  // When the owner first strayed more than 40 m from the route, and a look again once
+  // the 10 seconds are up, in case no new position arrives to prompt one.
+  const offSince = useRef<number | null>(null);
+  useEffect(() => {
+    if (!me || answer?.kind !== 'route' || offRoute(answer.route, me) <= OFF_ROUTE_M) {
+      offSince.current = null;
+      return;
+    }
+    offSince.current ??= Date.now();
+    const timer = setTimeout(() => setRound((n) => n + 1), OFF_ROUTE_FOR_MS + 500);
+    return () => clearTimeout(timer);
+  }, [me, answer]);
+
   useEffect(() => {
     if (!me || !venue || !focused.current || asking.current) return;
-    if (!needsNewAnswer(answer, me, venue, Date.now(), online)) return;
+    if (!needsNewAnswer(answer, me, venue, Date.now(), online, offSince.current ?? Date.now())) return;
     asking.current = true;
     getRouteKey()
       .then((key) => walkingRoute(me, venue, { key, online }))

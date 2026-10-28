@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, Share, StyleSheet, View } from 'react-native';
 
 import { Card, ListRow } from '@/components/Card';
 import { QevrionMark } from '@/components/QevrionMark';
@@ -19,6 +19,7 @@ import {
 } from '@/data/events';
 import { SAMPLE_COUNT } from '@/data/sampleEvents';
 import { getRouteKey } from '@/data/secrets';
+import { hasRecording, recordingUri } from '@/data/walkRecording';
 import { confirmDestructive } from '@/lib/confirm';
 import { tap } from '@/lib/haptics';
 import { colors, space } from '@/theme';
@@ -51,11 +52,16 @@ export default function Settings() {
   // this screen is back in front, as it is when the import closes.
   const [calendars, setCalendars] = useState(chosenCount);
   const [units, setUnits] = useState(() => getSettings().units);
+  const [simulateWalk, setSimulateWalk] = useState(() => getSettings().simulateWalk);
+  const [recordWalks, setRecordWalks] = useState(() => getSettings().recordWalks);
+  // A walk may have been recorded since this screen was last in front.
+  const [walkKept, setWalkKept] = useState(hasRecording);
   // The key is read from the keychain, which answers a moment later.
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   useFocusEffect(
     useCallback(() => {
       setCalendars(chosenCount());
+      setWalkKept(hasRecording());
       getRouteKey().then((key) => setHasKey(!!key));
     }, []),
   );
@@ -121,13 +127,16 @@ export default function Settings() {
           onPress={() =>
             confirmDestructive(
               'Delete all data?',
-              'Every event, saved route and setting, the route key included, is removed from this phone, and Qevrion starts again from the welcome screens. This cannot be undone.',
+              'Every event, saved route, recorded walk and setting, the route key included, is removed from this phone, and Qevrion starts again from the welcome screens. This cannot be undone.',
               'Delete everything',
               () => {
                 deleteAllData();
                 setCalendars(0);
                 setUnits('mi');
                 setHasKey(false);
+                setSimulateWalk(false);
+                setRecordWalks(false);
+                setWalkKept(false);
               },
             )
           }
@@ -172,6 +181,42 @@ export default function Settings() {
               tap();
               removeSampleEvents();
             }}
+          />
+        ) : null}
+        <ListRow
+          title="Simulate AR Walk"
+          subtitle="Replays a walk, so AR Walk can be tried at a desk. Tap to switch."
+          divider
+          right={<Value>{simulateWalk ? 'On' : 'Off'}</Value>}
+          onPress={() => {
+            tap();
+            updateSettings({ simulateWalk: !simulateWalk });
+            setSimulateWalk(!simulateWalk);
+          }}
+        />
+        <ListRow
+          title="Record AR walks"
+          subtitle="Keeps your last real walk on this phone, to replay and tune. Tap to switch."
+          divider
+          right={<Value>{recordWalks ? 'On' : 'Off'}</Value>}
+          onPress={() => {
+            tap();
+            updateSettings({ recordWalks: !recordWalks });
+            setRecordWalks(!recordWalks);
+          }}
+        />
+        {walkKept ? (
+          <ListRow
+            title="Share the recorded walk"
+            titleColor="accent"
+            right={NO_CHEVRON}
+            subtitle="It shows where you walked. It leaves the phone only if you share it."
+            divider
+            onPress={() =>
+              Share.share({ url: recordingUri(), title: 'Qevrion walk recording' }).catch(() =>
+                Alert.alert('Could not share the recording'),
+              )
+            }
           />
         ) : null}
         <ListRow

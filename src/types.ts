@@ -84,4 +84,10 @@ export type Settings = {
   onlyPartifulLinks: boolean;
   units: 'mi' | 'km';
   onboardingDone: boolean;
+  /** AR Walk's one-time safety note has been seen. */
+  walkSafetySeen: boolean;
+  /** Developer: AR Walk replays a walk instead of following the GPS. */
+  simulateWalk: boolean;
+  /** Developer: AR Walk keeps the last real walk on the phone, for replay and tuning. */
+  recordWalks: boolean;
 };

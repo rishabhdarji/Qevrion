@@ -3,10 +3,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
-import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
-import { OfflineBanner } from '@/components/OfflineBanner';
 import { Icon } from '@/components/Icon';
+import { LocationCard } from '@/components/LocationCard';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { RouteMap } from '@/components/RouteMap';
 import { Screen } from '@/components/Screen';
@@ -22,7 +22,7 @@ import { useNow } from '@/lib/countdown';
 import { formatTime } from '@/lib/dates';
 import { locateVenues } from '@/lib/geocode';
 import { isPlace } from '@/lib/geo';
-import { usePosition, useLocationAccess, type LocationAccess } from '@/lib/location';
+import { usePosition, useLocationAccess } from '@/lib/location';
 import { useOnline } from '@/lib/network';
 import { appleMapsWalkingUrl, googleMapsWalkingUrl } from '@/lib/maps';
 import { walkSummary } from '@/lib/walkSummary';
@@ -47,44 +47,6 @@ function whyNoMap(event: QevrionEvent): { title: string; body: string } {
     title: 'Finding the address',
     body: 'Apple Maps is looking this address up. It needs a connection; the map appears here once it is found.',
   };
-}
-
-/** The card that asks for location, just before it is needed, after saying why. */
-function LocationCard({ access, ask }: { access: LocationAccess; ask: () => void }) {
-  if (access === 'checking' || access === 'granted') return null;
-  const [title, body, action, onPress] =
-    access === 'ask'
-      ? [
-          'Walk from where you are',
-          'To draw the route and work out the time, Qevrion needs your location while the app is open. Never in the background.',
-          'Use my location',
-          ask,
-        ]
-      : access === 'denied'
-        ? [
-            'Location is off for Qevrion',
-            'Without it the map shows only the venue. To turn it on, open Settings and choose Location, While Using the App. In Expo Go this setting is under Expo Go.',
-            'Open Settings',
-            () => Linking.openSettings(),
-          ]
-        : [
-            'Location Services are off',
-            'They are off for the whole iPhone. Turn them on in Settings, Privacy & Security, Location Services.',
-            null,
-            null,
-          ];
-  return (
-    <Card style={styles.locationCard}>
-      <View style={styles.locationTitle}>
-        <Icon name="pin" size={18} color={colors.accent} />
-        <Txt variant="button">{title}</Txt>
-      </View>
-      <Txt variant="bodySmall" color="textSecondary">
-        {body}
-      </Txt>
-      {action && onPress ? <SecondaryButton label={action} onPress={onPress} /> : null}
-    </Card>
-  );
 }
 
 // Navigate: the map with your position, the venue and the walking route, the numbers
@@ -118,7 +80,7 @@ export default function Navigate() {
     );
   }
 
-  const units = getSettings().units;
+  const { units, simulateWalk: simulated } = getSettings();
   const summary =
     position && venue && answer
       ? walkSummary(answer, position, venue, event.startsAt, now, units)
@@ -132,8 +94,7 @@ export default function Navigate() {
       glow
       footer={
         <PrimaryButton
-          // ponytail: "Preview" until Round 5 makes AR Walk real, then "Start AR Walk".
-          label="Preview AR Walk"
+          label={simulated ? 'Start AR Walk (simulated)' : 'Start AR Walk'}
           onPress={() => router.push({ pathname: '/walk/[id]', params: { id: event.id } })}
         />
       }
@@ -258,15 +219,6 @@ const styles = StyleSheet.create({
   },
   center: {
     textAlign: 'center',
-  },
-  locationCard: {
-    gap: space[3],
-    marginBottom: space[3],
-  },
-  locationTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[2],
   },
   waiting: {
     flexDirection: 'row',

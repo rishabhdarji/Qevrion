@@ -12,6 +12,7 @@ import {
   showLocations,
 } from './events';
 import { dropAllPhotos, dropPhoto, keepPhoto } from './photos';
+import { dropRecording } from './walkRecording';
 
 // The store on top of the real SQL, with the photo files replaced by a list in memory:
 // what matters here is that a photo is copied in, and deleted, at the right moments.
@@ -27,6 +28,7 @@ jest.mock('./photos', () => {
     dropAllPhotos: jest.fn(),
   };
 });
+jest.mock('./walkRecording', () => ({ dropRecording: jest.fn() }));
 
 const HOUR = 3_600_000;
 const evening = new Date(2026, 9, 17, 19).getTime();
@@ -157,10 +159,11 @@ describe('an event photo', () => {
     expect(dropPhoto).toHaveBeenCalledWith(kept.split('/').pop());
   });
 
-  it('all go with Delete all data', () => {
+  it('all go with Delete all data, and so does the recorded walk', () => {
     saveEvent({ ...dinner, photo: picked });
     deleteAllData();
     expect(dropAllPhotos).toHaveBeenCalled();
+    expect(dropRecording).toHaveBeenCalled();
     expect(getEvents()).toEqual([]);
   });
 });
