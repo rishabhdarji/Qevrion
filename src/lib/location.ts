@@ -63,20 +63,28 @@ export function useLocationAccess(): { access: LocationAccess; ask: () => Promis
 export type Position = LatLng & {
   /** Metres either way. */
   accuracy: number | null;
+  /** When the phone took the fix, in milliseconds since 1970. */
+  at: number;
 };
 
 const toPosition = (fix: Location.LocationObject): Position => ({
   lat: fix.coords.latitude,
   lng: fix.coords.longitude,
   accuracy: fix.coords.accuracy ?? null,
+  at: fix.timestamp,
 });
 
 /**
  * Where the owner is, followed while the screen is in front and `enabled`, and let go
  * of when it is not, so the GPS is never left running. Starts with the last place the
- * phone knew if it is recent, so the map does not wait for a fresh fix.
+ * phone knew if it is recent, so the map does not wait for a fresh fix. A new position
+ * comes every `everyMetres`; `best` asks for the GPS's finest, which AR Walk needs and
+ * the map does not.
  */
-export function usePosition(enabled: boolean): Position | null {
+export function usePosition(
+  enabled: boolean,
+  { everyMetres = 15, best = false }: { everyMetres?: number; best?: boolean } = {},
+): Position | null {
   const [position, setPosition] = useState<Position | null>(null);
 
   useFocusEffect(
@@ -88,8 +96,10 @@ export function usePosition(enabled: boolean): Position | null {
         .then((fix) => active && fix && setPosition((now) => now ?? toPosition(fix)))
         .catch(() => {});
       Location.watchPositionAsync(
-        // A walk, not a drive: a new position every 15 m is plenty.
-        { accuracy: Location.Accuracy.High, distanceInterval: 15 },
+        {
+          accuracy: best ? Location.Accuracy.BestForNavigation : Location.Accuracy.High,
+          distanceInterval: everyMetres,
+        },
         (fix) => active && setPosition(toPosition(fix)),
       )
         .then((subscription) => {
@@ -101,7 +111,7 @@ export function usePosition(enabled: boolean): Position | null {
         active = false;
         watch?.remove();
       };
-    }, [enabled]),
+    }, [enabled, everyMetres, best]),
   );
 
   return enabled ? position : null;

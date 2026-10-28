@@ -35,6 +35,21 @@
         {
           "faceIDPermission": false
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Qevrion shows the street through the camera during AR Walk, with the arrow on top. Nothing the camera sees is kept or sent.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": false
+        }
       ]
     ],
     "experiments": {

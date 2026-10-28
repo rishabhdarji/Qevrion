@@ -628,6 +628,9 @@ describe('settings', () => {
       onlyPartifulLinks: false,
       units: 'mi',
       onboardingDone: false,
+      walkSafetySeen: false,
+      simulateWalk: false,
+      recordWalks: false,
     });
   });
 
@@ -702,6 +705,25 @@ describe('the database file', () => {
     deleteAllData();
     expect(listEvents()).toEqual([]);
     expect(getSettings().onboardingDone).toBe(false);
+  });
+
+  it('upgrades a database made before AR Walk, keeping the settings', () => {
+    const old = newDatabase();
+    MIGRATIONS.slice(0, 4).forEach((sql) => old.exec(sql));
+    old.exec('PRAGMA user_version = 4');
+    old.exec(`UPDATE settings SET onboardingDone = 1, units = 'km' WHERE id = 1`);
+    launchWith(old, (upgraded) => {
+      expect(upgraded.getSettings()).toMatchObject({
+        onboardingDone: true,
+        units: 'km',
+        walkSafetySeen: false,
+        simulateWalk: false,
+        recordWalks: false,
+      });
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: MIGRATIONS.length });
+      upgraded.updateSettings({ walkSafetySeen: true, recordWalks: true });
+      expect(upgraded.getSettings()).toMatchObject({ walkSafetySeen: true, simulateWalk: false, recordWalks: true });
+    });
   });
 
   it('upgrades a database made before saved routes, keeping what was in it', () => {

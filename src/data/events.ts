@@ -7,6 +7,7 @@ import * as db from './db';
 import { dropAllPhotos, dropPhoto, keepPhoto, photoName, photoUri } from './photos';
 import { makeSampleEvents } from './sampleEvents';
 import { setRouteKey } from './secrets';
+import { dropRecording } from './walkRecording';
 
 // The one place screens get events from, and the one place they change them.
 //
@@ -126,10 +127,11 @@ export function removeSampleEvents(): void {
   changed();
 }
 
-/** Every event, photo, saved route and setting, and the route key. */
+/** Every event, photo, saved route and setting, the recorded walk, and the route key. */
 export function deleteAllData(): void {
   db.deleteAllData();
   dropAllPhotos();
+  dropRecording();
   // The keychain answers later; the rest is already gone.
   setRouteKey(null).catch(() => {});
   changed();

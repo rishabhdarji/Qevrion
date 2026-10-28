@@ -12,3 +12,14 @@ export function tap(): void {
 export function tick(): void {
   Haptics.selectionAsync().catch(() => {});
 }
+
+/** Two firm taps: a turn is close (AR Walk). */
+export function turnSoon(): void {
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+  setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {}), 160);
+}
+
+/** The success pattern: you have arrived (AR Walk). */
+export function arrived(): void {
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+}

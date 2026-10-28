@@ -25,6 +25,9 @@ const DEFAULTS: Settings = {
   onlyPartifulLinks: false,
   units: 'mi',
   onboardingDone: false,
+  walkSafetySeen: false,
+  simulateWalk: false,
+  recordWalks: false,
 };
 
 // A drawn picture standing in for a photo, bright on purpose so the title's fade can be
