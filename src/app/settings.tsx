@@ -1,11 +1,13 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Share, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Share, StyleSheet, Switch, View } from 'react-native';
 
 import { Card, ListRow } from '@/components/Card';
 import { QevrionMark } from '@/components/QevrionMark';
+import { ReminderDebug } from '@/components/ReminderDebug';
 import { Screen } from '@/components/Screen';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionLabel } from '@/components/SectionLabel';
@@ -22,6 +24,8 @@ import { getRouteKey } from '@/data/secrets';
 import { hasRecording, recordingUri } from '@/data/walkRecording';
 import { confirmDestructive } from '@/lib/confirm';
 import { tap } from '@/lib/haptics';
+import { syncReminders, useReminderState } from '@/lib/reminderSync';
+import { formatMinutes, offsetsSummary, timeToday } from '@/lib/reminders';
 import { colors, space } from '@/theme';
 
 const REPO_URL = 'https://github.com/rishabhdarji/Qevrion';
@@ -41,8 +45,48 @@ function Value({ children }: { children: string }) {
   );
 }
 
-// Settings. Import sources, Navigation, Data and Developer work; Reminders becomes real
-// in Round 6.
+type TimeProps = { label: string; minutes: number; onChange: (minutes: number) => void };
+
+// A time of day, held as minutes after midnight, picked with the iPhone's own picker.
+function TimeOfDay({ label, minutes, onChange }: TimeProps) {
+  // The desktop preview has no time picker, so it only shows the value.
+  if (Platform.OS === 'web') return <Value>{formatMinutes(minutes)}</Value>;
+  return (
+    <DateTimePicker
+      value={timeToday(minutes)}
+      mode="time"
+      display="compact"
+      minuteInterval={5}
+      themeVariant="dark"
+      accentColor={colors.accent}
+      accessibilityLabel={label}
+      onValueChange={(_, date) => onChange(date.getHours() * 60 + date.getMinutes())}
+    />
+  );
+}
+
+type ToggleProps = { label: string; value: boolean; onChange: (value: boolean) => void };
+
+function Toggle({ label, value, onChange }: ToggleProps) {
+  return (
+    <Switch
+      value={value}
+      onValueChange={onChange}
+      accessibilityLabel={label}
+      trackColor={{ true: colors.accent, false: colors.surfaceRaised }}
+      ios_backgroundColor={colors.surfaceRaised}
+    />
+  );
+}
+
+const ACCESS = {
+  checking: undefined,
+  granted: 'On',
+  ask: 'Off. Tap to turn on',
+  denied: 'Off in the iPhone\'s Settings',
+} as const;
+
+// Settings: import sources, reminders, navigation, data and the developer tools.
 export default function Settings() {
   const router = useRouter();
   const version = Constants.expoConfig?.version ?? '';
@@ -58,8 +102,18 @@ export default function Settings() {
   const [walkKept, setWalkKept] = useState(hasRecording);
   // The key is read from the keychain, which answers a moment later.
   const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const { access } = useReminderState();
+  const [reminders, setReminders] = useState(getSettings);
+  // Saved at once, and the reminders rescheduled to match (SPEC section 8, rule 3).
+  const setReminder = (patch: Partial<typeof reminders>) => {
+    updateSettings(patch);
+    setReminders((current) => ({ ...current, ...patch }));
+    syncReminders();
+  };
   useFocusEffect(
     useCallback(() => {
+      // The default reminders are changed on a screen of their own.
+      setReminders(getSettings());
       setCalendars(chosenCount());
       setWalkKept(hasRecording());
       getRouteKey().then((key) => setHasKey(!!key));
@@ -87,12 +141,73 @@ export default function Settings() {
 
       <SectionLabel style={styles.groupLabel}>Reminders</SectionLabel>
       <Card padded={false}>
-        <ListRow title="Default reminders" subtitle="1 day, 2 hours and 30 minutes before" />
-        <ListRow title="Morning digest" subtitle="On days with events" divider right={<Value>8:00 AM</Value>} />
-        <ListRow title="Sunday preview" subtitle="The week ahead" divider right={<Value>6:00 PM</Value>} />
+        <ListRow
+          title="Notifications"
+          subtitle="Reminders arrive as notifications"
+          status={ACCESS[access]}
+          onPress={() => router.push('/reminders')}
+        />
+        <ListRow
+          title="Default reminders"
+          subtitle={offsetsSummary(reminders.defaultOffsets)}
+          divider
+          onPress={() => router.push('/reminder-times')}
+        />
+        <ListRow
+          title="Morning digest"
+          subtitle="On days with events"
+          divider
+          right={
+            <Toggle
+              label="Morning digest"
+              value={reminders.digestEnabled}
+              onChange={(digestEnabled) => setReminder({ digestEnabled })}
+            />
+          }
+        />
+        {reminders.digestEnabled ? (
+          <ListRow
+            title="Digest time"
+            divider
+            right={
+              <TimeOfDay
+                label="Morning digest time"
+                minutes={reminders.digestTime}
+                onChange={(digestTime) => setReminder({ digestTime })}
+              />
+            }
+          />
+        ) : null}
+        <ListRow
+          title="Sunday preview"
+          subtitle="The week ahead"
+          divider
+          right={
+            <Toggle
+              label="Sunday preview"
+              value={reminders.weeklyPreviewEnabled}
+              onChange={(weeklyPreviewEnabled) => setReminder({ weeklyPreviewEnabled })}
+            />
+          }
+        />
+        {reminders.weeklyPreviewEnabled ? (
+          <ListRow
+            title="Preview time"
+            divider
+            right={
+              <TimeOfDay
+                label="Sunday preview time"
+                minutes={reminders.weeklyPreviewTime}
+                onChange={(weeklyPreviewTime) => setReminder({ weeklyPreviewTime })}
+              />
+            }
+          />
+        ) : null}
       </Card>
       <Txt variant="caption" color="textTertiary" style={styles.note}>
-        Open Qevrion every few days so later reminders get scheduled.
+        Open Qevrion every few days so later reminders get scheduled. The iPhone holds only a
+        few dozen at a time, so Qevrion schedules the nearest 60 and adds the next ones each
+        time it opens. The morning digest is a good moment to open it.
       </Txt>
 
       <SectionLabel style={styles.groupLabel}>Navigation</SectionLabel>
@@ -137,6 +252,7 @@ export default function Settings() {
                 setSimulateWalk(false);
                 setRecordWalks(false);
                 setWalkKept(false);
+                setReminders(getSettings());
               },
             )
           }
@@ -226,6 +342,9 @@ export default function Settings() {
           onPress={() => router.push('/gallery')}
         />
       </Card>
+
+      <SectionLabel style={styles.groupLabel}>Reminders debug</SectionLabel>
+      <ReminderDebug />
 
       <View style={styles.footer}>
         <QevrionMark size={20} color={colors.decoration} />

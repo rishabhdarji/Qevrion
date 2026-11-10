@@ -17,9 +17,12 @@ import { IconButton, ScreenHeader } from '@/components/ScreenHeader';
 import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Txt } from '@/components/Txt';
+import { getSettings } from '@/data/db';
 import { useEvent } from '@/data/events';
 import { formatEventSpan } from '@/lib/dates';
 import { isPartifulLink, webLink } from '@/lib/links';
+import { useReminderState } from '@/lib/reminderSync';
+import { offsetsSummary } from '@/lib/reminders';
 import { colors, radius, size, space } from '@/theme';
 import type { GeocodeStatus } from '@/types';
 
@@ -43,6 +46,9 @@ export default function EventDetail() {
   // "not found" while it slides away.
   const [event, setEvent] = useState(live);
   if (live && live !== event) setEvent(live);
+  const reminders = useReminderState();
+  // When this screen opened, which is near enough to tell whether it is still to come.
+  const [openedAt] = useState(Date.now);
 
   if (!event) {
     return (
@@ -129,6 +135,23 @@ export default function EventDetail() {
             />
           )}
           {event.host ? <ListRow icon="person" title={event.host} subtitle="Host" divider /> : null}
+          {/* Nothing is left to remind of once it has started. */}
+          {event.startsAt > openedAt && !event.removedFromSource ? (
+            <ListRow
+              icon="bell"
+              title="Reminders"
+              subtitle={offsetsSummary(event.reminderOffsets ?? getSettings().defaultOffsets)}
+              status={
+                reminders.access === 'ask' || reminders.access === 'denied'
+                  ? 'Notifications are off'
+                  : event.reminderOffsets
+                    ? 'For this event only'
+                    : undefined
+              }
+              divider
+              onPress={() => router.push({ pathname: '/reminder-times', params: { id: event.id } })}
+            />
+          ) : null}
         </Card>
 
         {event.keyDetails.length > 0 ? (

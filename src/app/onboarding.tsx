@@ -15,6 +15,7 @@ import { SecondaryButton } from '@/components/SecondaryButton';
 import { StepBars } from '@/components/StepBars';
 import { Txt } from '@/components/Txt';
 import { updateSettings } from '@/data/db';
+import { askForReminders, markRemindersAsked } from '@/lib/reminderSync';
 import { colors, covers, radius, size, space } from '@/theme';
 
 const PAGES = [
@@ -116,8 +117,7 @@ export default function Onboarding() {
   const [page, setPage] = useState(0);
   const [footerHeight, setFooterHeight] = useState(220);
 
-  // ponytail: no permission is asked for here yet. The notification permission is
-  // Round 6; until then "Turn on reminders" only moves on.
+  const last = PAGES.length - 1;
   const finish = () => {
     updateSettings({ onboardingDone: true });
     router.replace('/upcoming');
@@ -185,13 +185,22 @@ export default function Onboarding() {
             // Page 2 opens the import screen over the tour, which moves on underneath,
             // so closing the import lands on the last page.
             if (page === 1) router.push('/import');
-            goTo(page + 1);
+            // The last page has said what reminders are, so its button puts the
+            // iPhone's question; whatever the answer, the tour is over.
+            if (page === last) askForReminders().finally(finish);
+            else goTo(page + 1);
           }}
         />
         <SecondaryButton
           label="Not now"
           // On the first page "Not now" skips the tour; after that it skips the step.
-          onPress={() => (page === 0 ? finish() : goTo(page + 1))}
+          onPress={() => {
+            // "Not now" to reminders is an answer: Home then says they are off,
+            // quietly, instead of asking a second time.
+            if (page === last) markRemindersAsked();
+            if (page === 0) finish();
+            else goTo(page + 1);
+          }}
         />
       </View>
     </View>

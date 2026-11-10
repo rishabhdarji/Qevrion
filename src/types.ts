@@ -30,6 +30,8 @@ export type QevrionEvent = {
   photo: string | null;
   /** An imported event that its calendar no longer has. Kept, and shown as removed. */
   removedFromSource: boolean;
+  /** Minutes before the start, for this event only. Null: the defaults in Settings. */
+  reminderOffsets: number[] | null;
 
   // Worked out when events are loaded (src/data/events.ts), not stored.
   isSample: boolean;
@@ -80,6 +82,13 @@ export type Settings = {
   /** Minutes after midnight. */
   digestTime: number;
   weeklyPreviewEnabled: boolean;
+  /** Minutes after midnight, on Sunday. */
+  weeklyPreviewTime: number;
+  /**
+   * The owner has been shown the screen that asks for notifications, or passed it by.
+   * From then on Home says so quietly while reminders are off.
+   */
+  remindersAsked: boolean;
   importCalendarIds: string[];
   onlyPartifulLinks: boolean;
   units: 'mi' | 'km';

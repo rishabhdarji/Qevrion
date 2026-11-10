@@ -51,6 +51,12 @@ function changed() {
   listeners.forEach((listener) => listener());
 }
 
+/**
+ * Calls `listener` after every change to the events, until the function it returns is
+ * called. The reminder scheduler listens here (SPEC section 8, rule 3).
+ */
+export const onEventsChanged = subscribe;
+
 /** Deletes the photo files of events that are about to go. */
 function dropPhotosOf(going: QevrionEvent[]) {
   going.forEach((event) => event.photo && dropPhoto(photoName(event.photo)));
@@ -74,6 +80,12 @@ export function saveEvent(fields: EventFields, id?: string): void {
   const name = shown === before ? before && photoName(before) : shown && keepPhoto(shown);
   db.saveEvent({ ...fields, photo: name }, id);
   if (before && shown !== before) dropPhoto(photoName(before));
+  changed();
+}
+
+/** This event's own reminders, in minutes before it starts, or with null the defaults again. */
+export function setReminderOffsets(id: string, offsets: number[] | null): void {
+  db.setReminderOffsets(id, offsets);
   changed();
 }
 

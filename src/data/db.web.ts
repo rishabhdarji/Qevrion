@@ -28,6 +28,8 @@ const DEFAULTS: Settings = {
   walkSafetySeen: false,
   simulateWalk: false,
   recordWalks: false,
+  weeklyPreviewTime: 1080,
+  remindersAsked: false,
 };
 
 // A drawn picture standing in for a photo, bright on purpose so the title's fade can be
@@ -96,8 +98,13 @@ export const saveEvent: typeof Phone.saveEvent = (fields, id) => {
         ? { lat: old.lat, lng: old.lng, geocodeStatus: old.geocodeStatus }
         : { lat: null, lng: null, geocodeStatus: 'pending' as const }),
     removedFromSource: old?.removedFromSource ?? false,
+    reminderOffsets: old?.reminderOffsets ?? null,
   };
   events = [...events.filter((event) => event.id !== saved.id), saved];
+};
+
+export const setReminderOffsets: typeof Phone.setReminderOffsets = (id, offsets) => {
+  events = events.map((event) => (event.id === id ? { ...event, reminderOffsets: offsets } : event));
 };
 
 // Really deletes, whatever the event came from. On the phone a deleted import is kept
@@ -152,6 +159,7 @@ export const importEvents: typeof Phone.importEvents = (incoming, scope) => {
         lng: null,
         geocodeStatus: 'pending',
         removedFromSource: false,
+        reminderOffsets: null,
       }),
     ),
   ];
@@ -178,6 +186,14 @@ export const findRoute: typeof Phone.findRoute = (from, to, now = Date.now()) =>
 
 export const keepRoute: typeof Phone.keepRoute = (route) => {
   routes = [route, ...routes].slice(0, 40);
+};
+
+let scheduled: ReturnType<typeof Phone.listScheduled> = [];
+
+export const listScheduled: typeof Phone.listScheduled = () => scheduled;
+
+export const replaceScheduled: typeof Phone.replaceScheduled = (rows) => {
+  scheduled = rows;
 };
 
 export const deleteAllData: typeof Phone.deleteAllData = () => {

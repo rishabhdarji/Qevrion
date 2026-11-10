@@ -3,6 +3,7 @@ import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 import { allDayToLocal, allDayToUtc } from '../lib/dates';
 import { distance, isPlace, type LatLng } from '../lib/geo';
 import { planImport, type ExistingEvent } from '../lib/importPlan';
+import type { Recorded } from '../lib/reminders';
 import type { WalkingRoute } from '../lib/route';
 import type {
   EventFields,
@@ -29,7 +30,9 @@ import type {
 // be built over it, and a database that cannot be upgraded cannot be opened. Version 4
 // keeps walking routes, so the same walk does not use up the route key's daily limit.
 // Version 5 is for AR Walk: whether its safety note has been seen, and the two
-// Developer switches that simulate and record walks.
+// Developer switches that simulate and record walks. Version 6 is for reminders:
+// ScheduledNotification (SPEC section 7), which records what has been handed to iOS,
+// the Sunday preview's time, and whether the owner has been asked about notifications.
 export const MIGRATIONS = [
   `CREATE TABLE events (
     id TEXT PRIMARY KEY NOT NULL,
@@ -91,6 +94,16 @@ export const MIGRATIONS = [
   `ALTER TABLE settings ADD COLUMN walkSafetySeen INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE settings ADD COLUMN simulateWalk INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE settings ADD COLUMN recordWalks INTEGER NOT NULL DEFAULT 0;`,
+  `CREATE TABLE scheduledNotifications (
+    id TEXT PRIMARY KEY NOT NULL,
+    eventId TEXT,
+    kind TEXT NOT NULL,
+    fireAt INTEGER NOT NULL,
+    osNotificationId TEXT NOT NULL,
+    signature TEXT NOT NULL
+  ) STRICT;
+  ALTER TABLE settings ADD COLUMN weeklyPreviewTime INTEGER NOT NULL DEFAULT 1080;
+  ALTER TABLE settings ADD COLUMN remindersAsked INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 let opened: SQLiteDatabase | undefined;
@@ -123,11 +136,15 @@ export type StoredEvent = Omit<QevrionEvent, 'isSample' | 'cover' | 'hasConflict
   sourceId: string | null;
 };
 
-type EventRow = Omit<StoredEvent, 'allDay' | 'isPartiful' | 'keyDetails' | 'removedFromSource'> & {
+type EventRow = Omit<
+  StoredEvent,
+  'allDay' | 'isPartiful' | 'keyDetails' | 'removedFromSource' | 'reminderOffsets'
+> & {
   allDay: number;
   isPartiful: number;
   keyDetails: string;
   removedFromSource: number;
+  reminderOffsets: string | null;
 };
 
 /** A row's times as the app holds them: all-day dates become this phone's days. */
@@ -152,7 +169,7 @@ export function listEvents(): StoredEvent[] {
     .getAllSync<EventRow>(
       `SELECT id, source, sourceId, title, startsAt, endsAt, allDay, locationText, lat, lng,
         geocodeStatus, url, host, description, isPartiful, notes, keyDetails, photo,
-        removedFromSource
+        removedFromSource, reminderOffsets
       FROM events WHERE deletedAt IS NULL`,
     )
     .map((row) => ({
@@ -161,7 +178,20 @@ export function listEvents(): StoredEvent[] {
       isPartiful: row.isPartiful === 1,
       keyDetails: JSON.parse(row.keyDetails) as string[],
       removedFromSource: row.removedFromSource === 1,
+      reminderOffsets: row.reminderOffsets === null ? null : (JSON.parse(row.reminderOffsets) as number[]),
     }));
+}
+
+/**
+ * This event's own reminders, in minutes before it starts, or with null the defaults
+ * again. Nothing else writes them: not the form, and not a sync (SPEC F2).
+ */
+export function setReminderOffsets(id: string, offsets: number[] | null): void {
+  db().runSync('UPDATE events SET reminderOffsets = ?, updatedAt = ? WHERE id = ?', [
+    offsets && JSON.stringify(offsets),
+    Date.now(),
+    id,
+  ]);
 }
 
 /**
@@ -478,6 +508,36 @@ export function keepRoute(route: WalkingRoute): void {
   });
 }
 
+// ScheduledNotification: the reminders handed to iOS. Written only by the scheduler
+// (src/lib/reminderSync.ts), which also cancels them, so "Delete all data" leaves the
+// table to its next run instead of forgetting what iOS still holds.
+
+export function listScheduled(): Recorded[] {
+  return db().getAllSync<Recorded>(
+    'SELECT id, eventId, kind, fireAt, osNotificationId, signature FROM scheduledNotifications',
+  );
+}
+
+export function replaceScheduled(rows: Recorded[]): void {
+  db().withTransactionSync(() => {
+    db().runSync('DELETE FROM scheduledNotifications');
+    for (const row of rows) {
+      db().runSync(
+        `INSERT INTO scheduledNotifications (id, eventId, kind, fireAt, osNotificationId, signature)
+        VALUES ($id, $eventId, $kind, $fireAt, $osNotificationId, $signature)`,
+        {
+          $id: row.id,
+          $eventId: row.eventId,
+          $kind: row.kind,
+          $fireAt: row.fireAt,
+          $osNotificationId: row.osNotificationId,
+          $signature: row.signature,
+        },
+      );
+    }
+  });
+}
+
 /** Every event, every setting and every kept route. Settings go back to their defaults. */
 export function deleteAllData(): void {
   db().withTransactionSync(() => {
@@ -501,6 +561,8 @@ const SETTINGS_KEYS = [
   'walkSafetySeen',
   'simulateWalk',
   'recordWalks',
+  'weeklyPreviewTime',
+  'remindersAsked',
 ] as const satisfies readonly (keyof Settings)[];
 
 export function getSettings(): Settings {
@@ -520,6 +582,8 @@ export function getSettings(): Settings {
     walkSafetySeen: row.walkSafetySeen === 1,
     simulateWalk: row.simulateWalk === 1,
     recordWalks: row.recordWalks === 1,
+    weeklyPreviewTime: Number(row.weeklyPreviewTime),
+    remindersAsked: row.remindersAsked === 1,
   };
 }
 

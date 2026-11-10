@@ -62,6 +62,7 @@ const upcoming: QevrionEvent[] = makeSampleEvents(openedAt)
     lng: null,
     geocodeStatus: 'pending',
     removedFromSource: false,
+    reminderOffsets: null,
     isSample: true,
     cover: Object.values(covers)[index],
     hasConflict: false,

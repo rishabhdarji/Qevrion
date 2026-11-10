@@ -37,6 +37,7 @@ function event(id: string, startsAt: number, extra: Partial<QevrionEvent> = {}):
     lng: null,
     geocodeStatus: 'pending',
     removedFromSource: false,
+    reminderOffsets: null,
     isSample: true,
     cover: ['#000000', '#000000'],
     hasConflict: false,

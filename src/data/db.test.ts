@@ -10,11 +10,14 @@ import {
   importEvents,
   keepRoute,
   listEvents,
+  listScheduled,
   MIGRATIONS,
   nextPendingAddress,
   replaceSampleEvents,
+  replaceScheduled,
   saveEvent,
   setGeocode,
+  setReminderOffsets,
   updateSettings,
 } from './db';
 import { makeSampleEvents, SAMPLE_COUNT } from './sampleEvents';
@@ -174,6 +177,21 @@ describe('events', () => {
     expect(listEvents()[0].photo).toBe('second.jpg');
     saveEvent({ ...dinner, photo: null }, id);
     expect(listEvents()[0].photo).toBeNull();
+  });
+
+  it("keeps an event's own reminders, through an edit, until they are cleared", () => {
+    saveEvent(dinner);
+    const { id } = listEvents()[0];
+    expect(listEvents()[0].reminderOffsets).toBeNull();
+    setReminderOffsets(id, [60, 10]);
+    expect(listEvents()[0].reminderOffsets).toEqual([60, 10]);
+    saveEvent({ ...dinner, title: 'Late dinner' }, id);
+    expect(listEvents()[0]).toMatchObject({ title: 'Late dinner', reminderOffsets: [60, 10] });
+    // None at all is a choice of its own, not the same as the defaults.
+    setReminderOffsets(id, []);
+    expect(listEvents()[0].reminderOffsets).toEqual([]);
+    setReminderOffsets(id, null);
+    expect(listEvents()[0].reminderOffsets).toBeNull();
   });
 
   it('deletes one event and only that one', () => {
@@ -631,6 +649,18 @@ describe('settings', () => {
       walkSafetySeen: false,
       simulateWalk: false,
       recordWalks: false,
+      weeklyPreviewTime: 1080,
+      remindersAsked: false,
+    });
+  });
+
+  it('keeps the reminder settings', () => {
+    updateSettings({ defaultOffsets: [10080, 15], digestTime: 450, weeklyPreviewTime: 1020, remindersAsked: true });
+    expect(getSettings()).toMatchObject({
+      defaultOffsets: [10080, 15],
+      digestTime: 450,
+      weeklyPreviewTime: 1020,
+      remindersAsked: true,
     });
   });
 
@@ -698,6 +728,38 @@ describe('saved walking routes', () => {
 
 const { newDatabase } = jest.requireActual<typeof import('./sqlite.testing')>('./sqlite.testing');
 
+describe('scheduled notifications', () => {
+  const row = (id: string, eventId: string | null, fireAt: number) => ({
+    id,
+    eventId,
+    kind: eventId ? ('reminder' as const) : ('digest' as const),
+    fireAt,
+    osNotificationId: `os-${id}`,
+    signature: `${fireAt}|Title|Body`,
+  });
+
+  afterEach(() => replaceScheduled([]));
+
+  it('starts with none, and gives back what was recorded', () => {
+    expect(listScheduled()).toEqual([]);
+    const recorded = [row('r:abc:30', 'abc', 1000), row('d:2026-6-10', null, 500)];
+    replaceScheduled(recorded);
+    expect(listScheduled()).toEqual(recorded);
+  });
+
+  it('replaces the whole list each time', () => {
+    replaceScheduled([row('a', 'x', 1), row('b', 'x', 2)]);
+    replaceScheduled([row('b', 'x', 2), row('c', null, 3)]);
+    expect(listScheduled().map((r) => r.id).sort()).toEqual(['b', 'c']);
+  });
+
+  it('is left for the scheduler by Delete all data, which still has them to cancel', () => {
+    replaceScheduled([row('a', 'x', 1)]);
+    deleteAllData();
+    expect(listScheduled()).toHaveLength(1);
+  });
+});
+
 describe('the database file', () => {
   it('is wiped by Delete all data, settings included', () => {
     saveEvent(dinner);
@@ -705,6 +767,28 @@ describe('the database file', () => {
     deleteAllData();
     expect(listEvents()).toEqual([]);
     expect(getSettings().onboardingDone).toBe(false);
+  });
+
+  it('upgrades a database made before reminders, keeping events and settings', () => {
+    const old = newDatabase();
+    MIGRATIONS.slice(0, 5).forEach((sql) => old.exec(sql));
+    old.exec('PRAGMA user_version = 5');
+    old.exec(`UPDATE settings SET digestTime = 450, defaultOffsets = '[60]' WHERE id = 1`);
+    old.exec(
+      `INSERT INTO events (id, source, title, startsAt, endsAt, timeZone, reminderOffsets, createdAt, updatedAt)
+      VALUES ('abc', 'manual', 'Old dinner', 1000, 2000, 'UTC', '[15]', 1, 1)`,
+    );
+    launchWith(old, (upgraded) => {
+      expect(upgraded.getSettings()).toMatchObject({
+        digestTime: 450,
+        defaultOffsets: [60],
+        weeklyPreviewTime: 1080,
+        remindersAsked: false,
+      });
+      expect(upgraded.listEvents()).toMatchObject([{ id: 'abc', reminderOffsets: [15] }]);
+      expect(upgraded.listScheduled()).toEqual([]);
+      expect(old.prepare('PRAGMA user_version').get()).toEqual({ user_version: MIGRATIONS.length });
+    });
   });
 
   it('upgrades a database made before AR Walk, keeping the settings', () => {

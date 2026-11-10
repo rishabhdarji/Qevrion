@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Chip } from '@/components/Chip';
@@ -8,6 +8,7 @@ import { EventHeroCard } from '@/components/EventHeroCard';
 import { EVENT_ROW_TEXT_INSET, EventRow } from '@/components/EventRow';
 import { Icon } from '@/components/Icon';
 import { Pill } from '@/components/Pill';
+import { PressableScale } from '@/components/PressableScale';
 import { Screen, useScreenPadding } from '@/components/Screen';
 import { SecondaryButton } from '@/components/SecondaryButton';
 import { SectionLabel } from '@/components/SectionLabel';
@@ -15,6 +16,7 @@ import { Txt } from '@/components/Txt';
 import { useEvents } from '@/data/events';
 import { useEventClock } from '@/lib/countdown';
 import { buildHomeItems, FILTERS, type Filter, type ListItem } from '@/lib/homeItems';
+import { useReminderState } from '@/lib/reminderSync';
 import { useSyncRefresh } from '@/lib/sync';
 import { colors, radius, size, space, type } from '@/theme';
 import type { QevrionEvent } from '@/types';
@@ -30,8 +32,34 @@ const EMPTY: Record<Filter, { title: string; body: string }> = {
   Partiful: { title: 'No Partiful events', body: 'Events with a Partiful link show up here.' },
 };
 
+/**
+ * A quiet line, not a warning: reminders are off, and this is the way to turn them on.
+ * Shown only once the owner has seen the question and not said yes.
+ */
+function RemindersOff() {
+  const router = useRouter();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel="Reminders are off. Turn on"
+      style={styles.remindersOff}
+      onPress={() => router.push('/reminders')}
+    >
+      <Icon name="bell" size={16} color={colors.textTertiary} />
+      <Txt variant="bodySmall" color="textSecondary" style={styles.remindersOffText}>
+        Reminders are off
+      </Txt>
+      <Txt variant="bodySmall" color="accent">
+        Turn on
+      </Txt>
+    </PressableScale>
+  );
+}
+
 type HeaderProps = {
   total: number;
+  /** Notifications are not allowed, and the owner has been asked. */
+  remindersOff: boolean;
   /** Whether any upcoming events overlap, which puts a red dot on that chip. */
   conflicts: boolean;
   query: string;
@@ -40,7 +68,7 @@ type HeaderProps = {
   onFilter: (filter: Filter) => void;
 };
 
-function HomeHeader({ total, conflicts, query, onQuery, filter, onFilter }: HeaderProps) {
+function HomeHeader({ total, remindersOff, conflicts, query, onQuery, filter, onFilter }: HeaderProps) {
   const router = useRouter();
   const [focused, setFocused] = useState(false);
 
@@ -66,6 +94,8 @@ function HomeHeader({ total, conflicts, query, onQuery, filter, onFilter }: Head
           />
         </View>
       </View>
+
+      {remindersOff ? <RemindersOff /> : null}
 
       <View style={[styles.search, focused && styles.searchFocused]}>
         <Icon name="search" size={18} color={colors.textTertiary} />
@@ -126,6 +156,19 @@ export default function Upcoming() {
   const items = buildHomeItems(events, now, query, filter);
   const upcoming = events.filter((event) => event.endsAt > now);
   const total = upcoming.length;
+
+  // Just in time: the first time Home is in front with something to be reminded of,
+  // the screen that asks for notifications opens, once. Before that there is nothing
+  // to remind of, and asking would only be a question without a reason.
+  const reminders = useReminderState();
+  const askNow = reminders.access === 'ask' && !reminders.asked && total > 0;
+  useFocusEffect(
+    useCallback(() => {
+      if (askNow) router.push('/reminders');
+    }, [askNow, router]),
+  );
+  const remindersOff =
+    reminders.asked && (reminders.access === 'ask' || reminders.access === 'denied');
   const browsing = filter === 'All' && query.trim() === '';
 
   const open = (event: QevrionEvent) =>
@@ -162,6 +205,7 @@ export default function Upcoming() {
         ListHeaderComponent={
           <HomeHeader
             total={total}
+            remindersOff={remindersOff}
             conflicts={upcoming.some((event) => event.hasConflict)}
             query={query}
             onQuery={setQuery}
@@ -223,6 +267,20 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: space[2],
+  },
+  remindersOff: {
+    minHeight: size.tap,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    paddingHorizontal: space[4],
+    marginBottom: space[3],
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+  },
+  remindersOffText: {
+    flex: 1,
   },
   search: {
     minHeight: size.search,
